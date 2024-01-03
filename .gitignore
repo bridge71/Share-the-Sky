@@ -2,9 +2,9 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij+all,visualstudio,visualstudiocode,cmake,c,c++
 
 ##test.vue
-/test.vue
+/my_vue/
 ##build
-/build
+/build/
 ####config
 config.*
 ### C ###
