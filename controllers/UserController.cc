@@ -1,3 +1,120 @@
 #include "UserController.h"
 
 // Add definition of your processing function here
+
+#define KB (1024)
+#define MB ((KB)*(KB))
+#define GB ((MB)*(KB))
+
+void UserController::addUser(const HttpRequestPtr& req,
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    auto dbClient = drogon::app().getDbClient();
+    std::string sql = "INSERT INTO user(userName, passWord, permissions, capacity, remaining) VALUE(?, ?, ?, ?, ?)";
+    std::string userName, passWord;
+    auto resJson = req->getJsonObject();
+    userName = (*resJson)["userName"].asString();
+    passWord = (*resJson)["passWord"].asString();
+    LOG_DEBUG<<userName;
+    LOG_DEBUG<<passWord;
+    Json::Value json;
+    try {
+        dbClient->execSqlSync(sql, userName, passWord, 2, 1*GB, 1*GB);
+        json["status"] = true;
+        // json['data']['userId'] = 
+    } catch (const drogon::orm::DrogonDbException &e){
+        json["status"] = false;
+        LOG_DEBUG<<e.base().what();
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
+
+void UserController::removeUser(const HttpRequestPtr& req,
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    auto resJson = req->getJsonObject();
+    int opUserId = (*resJson)["opUserId"].asInt();
+    int removeUserId = (*resJson)["removeUserId"].asInt();
+    LOG_DEBUG<<"op:"<<opUserId;
+    LOG_DEBUG<<"remove:"<<removeUserId;
+    Json::Value json;
+    auto dbClient = drogon::app().getDbClient();
+
+    try {
+        std::string sql = "SELECT * FROM user WHERE id=?";
+        auto ret = dbClient->execSqlSync(sql, opUserId);
+        auto r = ret.at(0);
+        int perm = r["permissions"].as<int>();
+        if (perm != 1) {
+            json["status"] = false;
+            json["message"] = "permission denied";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+            callback(resp);
+            return ;
+        }
+
+        sql = "DELETE FROM user WHERE id=?";
+        dbClient->execSqlSync(sql, removeUserId);
+
+        json["status"] = true;
+        json["message"] = "delete success";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+        callback(resp);
+        return ;
+    } catch (const drogon::orm::DrogonDbException &e) {
+        json["status"] = false;
+        json["message"] = "delete failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+        callback(resp);
+        return ;
+    }
+
+    json["status"] = false;
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
+
+void UserController::modifyUser(const HttpRequestPtr& req,
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    auto userId = req->getParameter("id");
+    auto dbClient = drogon::app().getDbClient();
+    std::string sql = "SELECT * FROM user WHERE user=?";
+    dbClient->execSqlSync(sql, userId);
+}
+
+//by ID
+void UserController::selectUser(const HttpRequestPtr& req,
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    auto resJson = req->getJsonObject();
+    int userId = (*resJson)["userId"].asInt();
+
+    auto dbClient = drogon::app().getDbClient();
+    std::string sql = "SELECT * FROM user WHERE id=?";
+    Json::Value json;
+    try {
+        auto ret = dbClient->execSqlSync(sql, userId);
+        if(ret.empty()) {
+            json["status"] = false;
+        }else{
+            for (const auto &user:ret) {
+                json["data"]["userId"] = user["id"].as<int>();
+                LOG_DEBUG<<user["id"].as<int>();
+                json["data"]["userName"] = user["userName"].as<std::string>();
+                LOG_DEBUG<<user["userName"].as<std::string>();
+                json["data"]["permissions"] = user["permissions"].as<int>();
+                LOG_DEBUG<<user["permissions"].as<int>();
+                json["data"]["capacity"] = user["capacity"].as<double>();
+                LOG_DEBUG<<user["capacity"].as<double>();
+            }
+            json["status"] = true;
+        }
+    } catch (const drogon::orm::DrogonDbException &e) {
+        json["status"] = false;
+        LOG_DEBUG<<e.base().what();
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
