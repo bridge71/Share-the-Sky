@@ -3,7 +3,7 @@
 #include "drogon/orm/Result.h"
 
 using namespace drogon;
-void FileController::Add_File(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, File file)const{
+void FileController::addFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, File file)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     try{
@@ -18,7 +18,7 @@ void FileController::Add_File(const HttpRequestPtr &req, std::function<void (con
 }
 // Add definition of your processing function here
 
-void FileController::Delete_File(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
+void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     int id = json["id"].as<int>();
@@ -31,7 +31,7 @@ void FileController::Delete_File(const HttpRequestPtr &req, std::function<void (
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
-void FileController::Find_File_Name(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
+void FileController::findFileName(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     try{
@@ -55,7 +55,7 @@ void FileController::Find_File_Name(const HttpRequestPtr &req, std::function<voi
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
-void FileController::Find_File_MD5(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
+void FileController::findFileMD5(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     try{
@@ -78,7 +78,7 @@ void FileController::Find_File_MD5(const HttpRequestPtr &req, std::function<void
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
-void FileController::List_File(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
+void FileController::listFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     try{

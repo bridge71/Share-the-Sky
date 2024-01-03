@@ -15,22 +15,22 @@ class FileController : public drogon::HttpController<FileController>
     METHOD_LIST_BEGIN
     // use METHOD_ADD to add your custom processing function here;
     // METHOD_ADD(FileController::get, "/{2}/{1}", Get); // path is /FileController/{arg2}/{arg1}
-     METHOD_ADD(FileController::Add_File, "/Add_File", Post); // path is /FileController/{arg1}/{arg2}/list
-     METHOD_ADD(FileController::Delete_File, "/Delete_File", Post); // path is /FileController/{arg1}/{arg2}/list
-     METHOD_ADD(FileController::List_File, "/List_File", Post); // path is /FileController/{arg1}/{arg2}/list
-     METHOD_ADD(FileController::Find_File_Name, "/Find_File_Name", Post); // path is /FileController/{arg1}/{arg2}/list
-     METHOD_ADD(FileController::Find_File_MD5, "/Find_File_MD5", Post); // path is /FileController/{arg1}/{arg2}/list
+     METHOD_ADD(FileController::addFile, "/addFile", Post); // path is /FileController/{arg1}/{arg2}/list
+     METHOD_ADD(FileController::deleteFile, "/deleteFile", Post); // path is /FileController/{arg1}/{arg2}/list
+     METHOD_ADD(FileController::listFile, "/listFile", Post); // path is /FileController/{arg1}/{arg2}/list
+     METHOD_ADD(FileController::findFileName, "/findFileName", Post); // path is /FileController/{arg1}/{arg2}/list
+     METHOD_ADD(FileController::findFileMD5, "/findFileMD5", Post); // path is /FileController/{arg1}/{arg2}/list
 
     // ADD_METHOD_TO(FileController::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list
 
     METHOD_LIST_END
     // your declaration of processing function maybe like this:
     // void get(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, int p1, std::string p2);
-    void Add_File(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, File file) const;
-    void Delete_File(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
-    void List_File(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
-    void Find_File_Name(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
-    void Find_File_MD5(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
+    void addFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, File file) const;
+    void deleteFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
+    void listFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
+    void findFileName(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
+    void findFileMD5(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
 
 };
 namespace drogon{
