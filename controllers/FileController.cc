@@ -3,12 +3,49 @@
 #include "drogon/orm/Result.h"
 
 using namespace drogon;
-void FileController::addFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, File file)const{
-    auto dbclient = drogon::app().getDbClient();
+void FileController::addFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
     Json::Value message;
+    MultiPartParser fileUpload;
+
+    fileUpload.parse(req);
+    auto para = fileUpload.getParameters();
+    auto allFile = fileUpload.getFiles();    
+    if(para.size()!= 1 || allFile.size() != 1){
+        message["code"] = 1;
+        message["error"] = "too much parameters, add failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+    }
+
+    auto &file = allFile[0];
+    auto MD5 = file.getMd5();
+    message["md5"] = MD5;
+
+    std::string key = "path";
+    std::string path = para[key];
+
+    auto dbclient = drogon::app().getDbClient();
     try{
+        auto result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
+        int sum = result.size();
+        if(sum == 0){
+            file.save();
+        }
+       
+        std::string fileName = file.getFileName();
+        auto fileEnum = file.getFileType();
+        std::string fileType;
+        switch (fileEnum){
+            case 2 : fileType = "document"; break;
+            case 3 : fileType = "archieve"; break;
+            case 4 : fileType = "audio"; break;
+            case 5 : fileType = "media"; break;
+            case 6 : fileType = "image"; break;
+            default : fileType = "unknown";
+        } 
+
         dbclient->execSqlSync("insert into file(fileName, fileType, MD5, path) values(?, ?, ?, ?)",
-        file.fileName, file.fileType, file.MD5, file.path);
+         fileName, fileType, MD5, path);
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
@@ -16,7 +53,6 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
-// Add definition of your processing function here
 
 void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
