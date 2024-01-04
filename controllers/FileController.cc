@@ -10,9 +10,9 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     fileUpload.parse(req);
     auto para = fileUpload.getParameters();
     auto allFile = fileUpload.getFiles();    
-    if(para.size()!= 1 || allFile.size() != 1){
+    if(para.size()!= 2 || allFile.size() != 1){
         message["code"] = 1;
-        message["error"] = "too much parameters, add failed";
+        message["error"] = "parameters error, add failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
         return;
@@ -25,6 +25,15 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     std::string key = "path";
     std::string path = para[key];
     LOG_DEBUG<<"path:"<<path;
+
+		std::string key2 = "userId";
+		std::string temp = para[key2];
+		int userId = 0;
+		int lenUserId = temp.size();
+		for(int i = 0; i < lenUserId; i++){
+			userId = userId * 10 + temp[i] - '0';
+		}
+		LOG_ERROR << "userId is " << userId;
 
     std::string fileName = file.getFileName();
 		std::string suffix = "";
@@ -51,18 +60,6 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             fileId = row["id"].as<int>();
         }
        
-        int userId = 0;
-        std::string userIdTemp = "";
-        std::regex pattern("^\\/[1-9]\\d*");
-        std::smatch match;
-        if(std::regex_search(path, match, pattern)){
-            userIdTemp = match[0];
-            int len = userIdTemp.size();
-            for(int i = 1; i < len; i++){
-                userId = userId * 10 + userIdTemp[i] - '0';
-            }
-        }
-        LOG_ERROR << "userId is" << userId;
         auto fileEnum = file.getFileType();
         std::string fileType;
         switch (fileEnum){
