@@ -24,6 +24,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 
     std::string key = "path";
     std::string path = para[key];
+    LOG_DEBUG<<"path:"<<path;
 
     std::string fileName = file.getFileName();
 		std::string suffix = "";
@@ -154,19 +155,18 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
     Json::Value message;
     try{
         std::string path = json["path"].as<std::string>();
-        std::string sql = "select * from file where path = ?";
+        std::string sql = "select * from fileOfUser where path = ?";
         auto future = dbclient->execSqlAsyncFuture(sql, path);
         auto result = future.get();
         for (const auto &row : result){
             Json::Value item;
-            item["id"] = row["id"].as<int>();
             item["fileName"] = row["fileName"].as<std::string>();
-            item["fileType"] = row["fileType"].as<std::string>();
-            item["MD5"] = row["MD5"].as<std::string>();
+            item["fileType"] = "";
             item["path"] = row["path"].as<std::string>();
             message.append(item);
         }
     }catch (drogon::orm::DrogonDbException &e){
+        LOG_DEBUG<<e.base().what();
         message["error"] = "list failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
