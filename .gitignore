@@ -2,7 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij+all,visualstudio,visualstudiocode,cmake,c,c++
 
 ##uoload
-/upload/
+/uploads/
 ##test.vue
 /my_vue/
 ##build

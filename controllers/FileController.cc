@@ -25,12 +25,21 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     std::string key = "path";
     std::string path = para[key];
 
+    std::string fileName = file.getFileName();
+		std::string suffix = "";
+		for(int i = fileName.size() - 1; i > 0; i--){
+			suffix += fileName[i];
+			if(fileName[i] == '.')
+				break;
+		}
+		std::reverse(suffix.begin(), suffix.end());
+		std::string rename = MD5 + suffix;
     auto dbclient = drogon::app().getDbClient();
     try{
         auto result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
         if(sum == 0){
-            file.saveAs(MD5);
+            file.saveAs(rename);
         //  dbclient->execSqlSync("insert into file(fileType, MD5) values(?, ?)", fileType, MD5);
             dbclient->execSqlSync("insert into file(MD5) values(?)", MD5);
             result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
@@ -53,7 +62,6 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             }
         }
         LOG_ERROR << "userId is" << userId;
-        std::string fileName = file.getFileName();
         auto fileEnum = file.getFileType();
         std::string fileType;
         switch (fileEnum){
@@ -64,8 +72,13 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-        dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour)", 
-            userId, fileId, path, fileName);
+				auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?", userId, fileId);
+				if(query.size() == 0){
+        	dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour)", 
+          userId, fileId, path, fileName);
+				}else{
+					message["warnning"] = "file has been uploaded";
+				}
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
