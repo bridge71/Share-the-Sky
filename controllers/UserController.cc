@@ -118,3 +118,36 @@ void UserController::selectUser(const HttpRequestPtr& req,
     auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     callback(resp);
 }
+
+void UserController::loginUser(const HttpRequestPtr& req,
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    auto resJson = req->getJsonObject();
+    std::string userName = (*resJson)["userName"].asString();
+    std::string passWord = (*resJson)["passWord"].asString();
+    LOG_DEBUG<<userName;
+    LOG_DEBUG<<passWord;
+
+    auto dbClient = drogon::app().getDbClient();
+    std::string sql = "SELECT * FROM user WHERE (userName=? AND passWord=?)";
+    Json::Value json;
+    try {
+        auto ret = dbClient->execSqlSync(sql, userName, passWord);
+        if(ret.empty()) {
+            json["status"] = false;
+        }else{
+            for (const auto &user:ret) {
+                json["data"]["userId"] = user["id"].as<int>();
+                LOG_DEBUG<<user["id"].as<int>();
+                json["data"]["userName"] = user["userName"].as<std::string>();
+                LOG_DEBUG<<user["userName"].as<std::string>();
+            }
+            json["status"] = true;
+        }
+    } catch (const drogon::orm::DrogonDbException &e) {
+        json["status"] = false;
+        LOG_DEBUG<<e.base().what();
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}

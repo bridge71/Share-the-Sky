@@ -13,13 +13,15 @@ class UserController : public drogon::HttpController<UserController>
     // METHOD_ADD(UserController::your_method_name, "/{1}/{2}/list", Get); // path is /UserController/{arg1}/{arg2}/list
     // ADD_METHOD_TO(UserController::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list
     //增
-    ADD_METHOD_TO(UserController::addUser, "/user/add", Post);
+    ADD_METHOD_TO(UserController::addUser, "/drogon/user/add", Post);
     //删
-    ADD_METHOD_TO(UserController::removeUser, "/user/remove", Post);
+    ADD_METHOD_TO(UserController::removeUser, "/drogon/user/remove", Post);
     //改
-    ADD_METHOD_TO(UserController::modifyUser, "/user/modify", Post);
+    ADD_METHOD_TO(UserController::modifyUser, "/drogon/user/modify", Post);
     //查
-    ADD_METHOD_TO(UserController::selectUser, "/user/select", Post);
+    ADD_METHOD_TO(UserController::selectUser, "/drogon/user/select", Post);
+    //登录
+    ADD_METHOD_TO(UserController::loginUser, "/drogon/user/login", Post);
 
     METHOD_LIST_END
     // your declaration of processing function maybe like this:
@@ -37,6 +39,9 @@ class UserController : public drogon::HttpController<UserController>
 
     //By userId
     void selectUser(const HttpRequestPtr& req,
+        std::function<void (const HttpResponsePtr &)> &&callback
+    ) const;
+    void loginUser(const HttpRequestPtr& req,
         std::function<void (const HttpResponsePtr &)> &&callback
     ) const;
 };
