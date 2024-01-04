@@ -1,6 +1,7 @@
 #include "FileController.h"
 #include "drogon/orm/Exception.h"
 #include "drogon/orm/Result.h"
+#include <regex>
 
 using namespace drogon;
 void FileController::addFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
@@ -15,6 +16,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         message["error"] = "too much parameters, add failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
+        return;
     }
 
     auto &file = allFile[0];
@@ -29,9 +31,29 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         auto result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
         if(sum == 0){
-            file.save();
+            file.saveAs(MD5);
+        //  dbclient->execSqlSync("insert into file(fileType, MD5) values(?, ?)", fileType, MD5);
+            dbclient->execSqlSync("insert into file(MD5) values(?)", MD5);
+            result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
+        }
+        
+        int fileId;
+        for(const auto &row : result){
+            fileId = row["id"].as<int>();
         }
        
+        int userId = 0;
+        std::string userIdTemp = "";
+        std::regex pattern("^\\/[1-9]\\d*");
+        std::smatch match;
+        if(std::regex_search(path, match, pattern)){
+            userIdTemp = match[0];
+            int len = userIdTemp.size();
+            for(int i = 1; i < len; i++){
+                userId = userId * 10 + userIdTemp[i] - '0';
+            }
+        }
+        LOG_ERROR << "userId is" << userId;
         std::string fileName = file.getFileName();
         auto fileEnum = file.getFileType();
         std::string fileType;
@@ -43,9 +65,8 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-
-        dbclient->execSqlSync("insert into file(fileName, fileType, MD5, path) values(?, ?, ?, ?)",
-         fileName, fileType, MD5, path);
+        dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour)", 
+            userId, fileId, path, fileName);
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
