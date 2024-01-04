@@ -138,3 +138,63 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
+
+void FileController::downLoadFile(const HttpRequestPtr& req, 
+    std::function<void (const HttpResponsePtr &)> &&callback, 
+    Json::Value json
+) const {
+    auto dbclient = drogon::app().getDbClient();
+    Json::Value message;
+    try{
+        std::string MD5 = json["MD5"].as<std::string>();
+        std::string sql = "select * from file where MD5 = ?";
+        auto future = dbclient->execSqlAsyncFuture(sql, MD5);
+        auto result = future.get();
+        if(result.empty()) {
+            message["error"] = "download failed";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+    }catch (drogon::orm::DrogonDbException &e){
+        message["error"] = "download failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
+    }
+
+    // auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    // callback(resp);
+    auto resp = drogon::HttpResponse::newFileResponse("./uploads/Screenshot_2023-11-10_10-20-01.png");
+    callback(resp);
+}
+
+void FileController::downLoadFileGet(const HttpRequestPtr& req, 
+    std::function<void (const HttpResponsePtr &)> &&callback, 
+    std::string MD5
+) const{
+    auto dbclient = drogon::app().getDbClient();
+    Json::Value message;
+    try{
+        std::string sql = "select * from file where MD5 = ?";
+        auto future = dbclient->execSqlAsyncFuture(sql, MD5);
+        auto result = future.get();
+        if(result.empty()) {
+            message["error"] = "download failed";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+    }catch (drogon::orm::DrogonDbException &e){
+        message["error"] = "download failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
+    }
+
+    // auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    // callback(resp);
+    auto resp = drogon::HttpResponse::newFileResponse("./uploads/Screenshot_2023-11-10_10-20-01.png");
+    callback(resp);
+
+}
