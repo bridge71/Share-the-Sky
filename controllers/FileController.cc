@@ -15,6 +15,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         message["error"] = "too much parameters, add failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
+        return ;
     }
 
     auto &file = allFile[0];
