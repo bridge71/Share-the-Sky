@@ -11,6 +11,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     auto para = fileUpload.getParameters();
     auto allFile = fileUpload.getFiles();    
     if(para.size()!= 2 || allFile.size() != 1){
+        LOG_DEBUG<<"文件/参数错误"<<"参数："<<para.size()<<"文件："<<allFile.size();
         message["code"] = 1;
         message["error"] = "parameters error, add failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -70,13 +71,13 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-				auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?;", userId, fileId);
-				if(query.size() == 0){
-        	dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour);", 
-          userId, fileId, path, fileName);
-				}else{
-					message["warnning"] = "file has been uploaded";
-				}
+        auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?;", userId, fileId);
+        if(query.size() == 0){
+            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour);", 
+            userId, fileId, path, fileName);
+        }else{
+            message["warnning"] = "file has been uploaded";
+        }
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
@@ -153,12 +154,14 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
     try{
         std::string path = json["path"].as<std::string>();
         std::string userId = json["userId"].as<std::string>();
-        std::string sql = "select * from fileOfUser where userId=? AND path = ?;";
+        LOG_DEBUG<<"path:"<<path;
+        LOG_DEBUG<<"userId:"<<userId;
+        std::string sql = "select * from fileOfUser where user_id=? AND path = ?;";
         auto future = dbclient->execSqlAsyncFuture(sql, userId, path);
         auto result = future.get();
         for (const auto &row : result){
             Json::Value item;
-            item["fileId"] = row["fileId"].as<std::string>();
+            item["fileId"] = row["file_id"].as<std::string>();
             item["fileName"] = row["fileName"].as<std::string>();
             item["time"] = row["time"].as<std::string>();
             item["path"] = row["path"].as<std::string>();
@@ -213,22 +216,25 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
     try{
         std::string sql = 
         " \
-            SELECT f.MD5 \
+            SELECT f.MD5, f.fileExtension \
             FROM fileOfUser fu \
-            JOIN file f ON fu.fileId = f.fileId \
-            WHERE fu.userId = ? AND fu.fileId = ?; \
+            JOIN file f ON fu.file_id = f.id \
+            WHERE fu.user_id = ? AND fu.file_id = ?; \
         ";
         auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
         auto result = future.get();
         if(result.empty()) {
+            LOG_DEBUG<<"没有查询到文件";
             message["error"] = "download failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
         }
         MD5 = result.at(0)["MD5"].as<std::string>();
-        suffix = result.at(0)["suffix"].as<std::string>();
+        suffix = result.at(0)["fileExtension"].as<std::string>();
+        suffix = result.at(0)["fileExtension"].as<std::string>();
     }catch (drogon::orm::DrogonDbException &e){
+        LOG_DEBUG<<e.base().what();
         message["error"] = "download failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
@@ -237,7 +243,7 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
 
     // auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     // callback(resp);
-    auto resp = drogon::HttpResponse::newFileResponse("./uploads/"+MD5+"."+suffix);
+    auto resp = drogon::HttpResponse::newFileResponse("./uploads/"+MD5+suffix);
     callback(resp);
 
 }
