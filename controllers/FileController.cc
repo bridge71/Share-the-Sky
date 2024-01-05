@@ -11,6 +11,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     auto para = fileUpload.getParameters();
     auto allFile = fileUpload.getFiles();    
     if(para.size()!= 2 || allFile.size() != 1){
+        LOG_DEBUG<<"文件/参数错误"<<"参数："<<para.size()<<"文件："<<allFile.size();
         message["code"] = 1;
         message["error"] = "parameters error, add failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -24,6 +25,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 
     std::string key = "path";
     std::string path = para[key];
+    LOG_DEBUG<<"path:"<<path;
 
 		std::string key2 = "userId";
 		std::string temp = para[key2];
@@ -50,7 +52,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         if(sum == 0){
             file.saveAs(rename);
         //  dbclient->execSqlSync("insert into file(fileType, MD5) values(?, ?)", fileType, MD5);
-            dbclient->execSqlSync("insert into file(MD5) values(?)", MD5);
+            dbclient->execSqlSync("insert into file(MD5, fileExtension) values(?, ?)", MD5, suffix);
             result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
         }
         
@@ -69,13 +71,13 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-				auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?", userId, fileId);
-				if(query.size() == 0){
-        	dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour)", 
-          userId, fileId, path, fileName);
-				}else{
-					message["warnning"] = "file has been uploaded";
-				}
+        auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?;", userId, fileId);
+        if(query.size() == 0){
+            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour);", 
+            userId, fileId, path, fileName);
+        }else{
+            message["warnning"] = "file has been uploaded";
+        }
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
@@ -91,7 +93,7 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
     Json::Value message;
     int id = json["id"].as<int>();
     try{
-        dbclient->execSqlSync("delete from file where id = ?", id);
+        dbclient->execSqlSync("delete from file where id = ?;", id);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
         message["error"] = "Delete failed";
@@ -104,7 +106,7 @@ void FileController::findFileName(const HttpRequestPtr &req, std::function<void 
     Json::Value message;
     try{
         std::string fileName = json["fileName"].as<std::string>();
-        std::string sql = "select * from file where fileName = ?";
+        std::string sql = "select * from file where fileName = ?;";
         std::cout<<sql;
         auto future = dbclient->execSqlAsyncFuture(sql, fileName);
         auto result = future.get();
@@ -128,7 +130,7 @@ void FileController::findFileMD5(const HttpRequestPtr &req, std::function<void (
     Json::Value message;
     try{
         std::string MD5 = json["MD5"].as<std::string>();
-        std::string sql = "select * from file where MD5 = ?";
+        std::string sql = "select * from file where MD5 = ?;";
         auto future = dbclient->execSqlAsyncFuture(sql, MD5);
         auto result = future.get();
         for (const auto &row : result){
@@ -151,19 +153,22 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
     Json::Value message;
     try{
         std::string path = json["path"].as<std::string>();
-        std::string sql = "select * from file where path = ?";
-        auto future = dbclient->execSqlAsyncFuture(sql, path);
+        std::string userId = json["userId"].as<std::string>();
+        LOG_DEBUG<<"path:"<<path;
+        LOG_DEBUG<<"userId:"<<userId;
+        std::string sql = "select * from fileOfUser where user_id=? AND path = ?;";
+        auto future = dbclient->execSqlAsyncFuture(sql, userId, path);
         auto result = future.get();
         for (const auto &row : result){
             Json::Value item;
-            item["id"] = row["id"].as<int>();
+            item["fileId"] = row["file_id"].as<std::string>();
             item["fileName"] = row["fileName"].as<std::string>();
-            item["fileType"] = row["fileType"].as<std::string>();
-            item["MD5"] = row["MD5"].as<std::string>();
+            item["time"] = row["time"].as<std::string>();
             item["path"] = row["path"].as<std::string>();
             message.append(item);
         }
     }catch (drogon::orm::DrogonDbException &e){
+        LOG_DEBUG<<e.base().what();
         message["error"] = "list failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -201,22 +206,35 @@ void FileController::downLoadFile(const HttpRequestPtr& req,
 }
 
 void FileController::downLoadFileGet(const HttpRequestPtr& req, 
-    std::function<void (const HttpResponsePtr &)> &&callback, 
-    std::string MD5
+    std::function<void (const HttpResponsePtr &)> &&callback,
+    std::string userId,
+    std::string fileId
 ) const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
+    std::string MD5, suffix;
     try{
-        std::string sql = "select * from file where MD5 = ?";
-        auto future = dbclient->execSqlAsyncFuture(sql, MD5);
+        std::string sql = 
+        " \
+            SELECT f.MD5, f.fileExtension \
+            FROM fileOfUser fu \
+            JOIN file f ON fu.file_id = f.id \
+            WHERE fu.user_id = ? AND fu.file_id = ?; \
+        ";
+        auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
         auto result = future.get();
         if(result.empty()) {
+            LOG_DEBUG<<"没有查询到文件";
             message["error"] = "download failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
         }
+        MD5 = result.at(0)["MD5"].as<std::string>();
+        suffix = result.at(0)["fileExtension"].as<std::string>();
+        suffix = result.at(0)["fileExtension"].as<std::string>();
     }catch (drogon::orm::DrogonDbException &e){
+        LOG_DEBUG<<e.base().what();
         message["error"] = "download failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
@@ -225,7 +243,7 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
 
     // auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     // callback(resp);
-    auto resp = drogon::HttpResponse::newFileResponse("./uploads/Screenshot_2023-11-10_10-20-01.png");
+    auto resp = drogon::HttpResponse::newFileResponse("./uploads/"+MD5+suffix);
     callback(resp);
 
 }
