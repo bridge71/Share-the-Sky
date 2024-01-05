@@ -56,13 +56,11 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 
     //查询容量，剩余不够添加文件，不填加
     LOG_DEBUG<<"file size"<<file.fileLength();
-    int remaining;
     try{
         std::string sql = "SELECT * FROM user where id=?;";
         auto result = dbclient->execSqlSync(sql, userId);
-
+        auto remaining = result.at(0)["remaining"].as<int>();
         auto fileSize = file.fileLength();
-        remaining = result.at(0)["remaining"].as<int>();
         if(fileSize > remaining) {
             LOG_DEBUG<<"容量不够";
             message["warning"] = "upload failed";
@@ -106,10 +104,10 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         } 
         auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?;", userId, fileId);
         if(query.size() == 0){
-            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour);", 
-            userId, fileId, path, fileName);
-            std::string sql = "UPDATE user SET remaining=? WHERE id=?";
-            dbclient->execSqlSync(sql, remaining - file.fileLength(), userId);
+            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour, ?);", 
+            userId, fileId, path, fileName, file.fileLength());
+            std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
+            dbclient->execSqlSync(sql, file.fileLength(), userId);
         }else{
             message["warning"] = "file has been uploaded";
         }
@@ -133,6 +131,11 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
     LOG_DEBUG<<"文件ID:"<<fileId;
     LOG_DEBUG<<"用户ID:"<<userId;
     try{
+        auto ret = dbclient->execSqlSync("select * from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
+        int fileSize = ret.at(0)["fileSize"].as<int>();
+        LOG_DEBUG<<"delete file size:"<<fileSize;
+        std::string sql = "UPDATE user SET remaining=remaining+? WHERE id=?";
+        dbclient->execSqlSync(sql, fileSize, userId);
         dbclient->execSqlSync("delete from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
