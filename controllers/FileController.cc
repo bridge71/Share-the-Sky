@@ -27,14 +27,14 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     std::string path = para[key];
     LOG_DEBUG<<"path:"<<path;
 
-		std::string key2 = "userId";
-		std::string temp = para[key2];
-		int userId = 0;
-		int lenUserId = temp.size();
-		for(int i = 0; i < lenUserId; i++){
-			userId = userId * 10 + temp[i] - '0';
-		}
-		LOG_ERROR << "userId is " << userId;
+    std::string key2 = "userId";
+    std::string temp = para[key2];
+    int userId = 0;
+    int lenUserId = temp.size();
+    for(int i = 0; i < lenUserId; i++){
+        userId = userId * 10 + temp[i] - '0';
+    }
+    LOG_ERROR << "userId is " << userId;
 
     std::string fileName = file.getFileName();
 		std::string suffix = "";
@@ -43,9 +43,40 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 			if(fileName[i] == '.')
 				break;
 		}
-		std::reverse(suffix.begin(), suffix.end());
-		std::string rename = MD5 + suffix;
+    std::reverse(suffix.begin(), suffix.end());
+    std::string rename = MD5 + suffix;
+
     auto dbclient = drogon::app().getDbClient();
+    //用户是否存在
+    try{
+        
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+    }
+
+    //查询容量，剩余不够添加文件，不填加
+    LOG_DEBUG<<"file size"<<file.fileLength();
+    try{
+        std::string sql = "SELECT * FROM user where id=?;";
+        auto result = dbclient->execSqlSync(sql, userId);
+        auto remaining = result.at(0)["remaining"].as<int>();
+        auto fileSize = file.fileLength();
+        if(fileSize > remaining) {
+            LOG_DEBUG<<"容量不够";
+            message["warning"] = "upload failed";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+        message["warning"] = "upload failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
+    }
+
     try{
         auto result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
@@ -65,7 +96,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         std::string fileType;
         switch (fileEnum){
             case 2 : fileType = "document"; break;
-            case 3 : fileType = "archieve"; break;
+            case 3 : fileType = "archive"; break;
             case 4 : fileType = "audio"; break;
             case 5 : fileType = "media"; break;
             case 6 : fileType = "image"; break;
@@ -73,11 +104,14 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         } 
         auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?;", userId, fileId);
         if(query.size() == 0){
-            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour);", 
-            userId, fileId, path, fileName);
+            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour, ?);", 
+            userId, fileId, path, fileName, file.fileLength());
+            std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
+            dbclient->execSqlSync(sql, file.fileLength(), userId);
         }else{
-            message["warnning"] = "file has been uploaded";
+            message["warning"] = "file has been uploaded";
         }
+
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
@@ -91,12 +125,22 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
-    int id = json["id"].as<int>();
+    std::string fileName = json["fileName"].as<std::string>();
+    std::string fileId = json["fileId"].as<std::string>();
+    std::string userId = json["userId"].as<std::string>();
+    LOG_DEBUG<<"文件ID:"<<fileId;
+    LOG_DEBUG<<"用户ID:"<<userId;
     try{
-        dbclient->execSqlSync("delete from file where id = ?;", id);
+        auto ret = dbclient->execSqlSync("select * from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
+        int fileSize = ret.at(0)["fileSize"].as<int>();
+        LOG_DEBUG<<"delete file size:"<<fileSize;
+        std::string sql = "UPDATE user SET remaining=remaining+? WHERE id=?";
+        dbclient->execSqlSync(sql, fileSize, userId);
+        dbclient->execSqlSync("delete from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
         message["error"] = "Delete failed";
+        LOG_DEBUG<<e.base().what();
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
