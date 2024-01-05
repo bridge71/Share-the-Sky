@@ -32,12 +32,12 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
     auto dbclient = drogon::app().getDbClient();
     try{
      // write share information to share table
-      dbclient->execSqlSync("insert into share(file_id, user_id, time, code) values(?, ?, now() + interval ? hour, ?)", 
+      dbclient->execSqlSync("insert into share(fileId, userId, time, code) values(?, ?, now() + interval ? hour, ?)", 
           userId, fileId, time, code);
       // gain share_id
-      auto result = dbclient->execSqlSync("select max(share_id) from share");	
+      auto result = dbclient->execSqlSync("select max(shareId) from share");	
       for(auto row : result){
-        number = row["max(share_id)"].as<std::string>();
+        number = row["max(shareId)"].as<std::string>();
       }
       message["path"] = "/" + number + "/" + code;
       message["code"] = "0";
@@ -62,7 +62,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
 
     try{
      // check if it is a legal share
-      auto result = dbclient->execSqlSync("select * from share where share_id = ? and code = ?", shareIdInt, shareCode);
+      auto result = dbclient->execSqlSync("select * from share where shareId = ? and code = ?", shareIdInt, shareCode);
 
       if(result.size() == 0){
         message["code"] = 1;
@@ -75,8 +75,8 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
     std::string timeLimit, userId, fileId;
     for(auto row : result){
       timeLimit = row["time"].as<std::string>();
-      userId = row["user_id"].as<std::string>();
-      fileId = row["file_id"].as<std::string>();
+      userId = row["userId"].as<std::string>();
+      fileId = row["fileId"].as<std::string>();
     }
 
     auto nowTime = dbclient->execSqlSync("select now() + interval 8 hour");
@@ -91,8 +91,8 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
         " \
             SELECT f.MD5, f.fileExtension \
             FROM fileOfUser fu \
-            JOIN file f ON fu.file_id = f.id \
-            WHERE fu.user_id = ? AND fu.file_id = ?; \
+            JOIN file f ON fu.fileId = f.Id \
+            WHERE fu.userId = ? AND fu.fileId = ?; \
         ";
       auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
       auto result = future.get();

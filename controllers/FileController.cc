@@ -1,6 +1,7 @@
 #include "FileController.h"
 #include "drogon/orm/Exception.h"
 #include "drogon/orm/Result.h"
+#include <vector>
 
 using namespace drogon;
 void FileController::addFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
@@ -23,10 +24,6 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     auto MD5 = file.getMd5();
     message["md5"] = MD5;
 
-    std::string key = "path";
-    std::string path = para[key];
-    LOG_DEBUG<<"path:"<<path;
-
     std::string key2 = "userId";
     std::string temp = para[key2];
     int userId = 0;
@@ -35,6 +32,51 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         userId = userId * 10 + temp[i] - '0';
     }
     LOG_ERROR << "userId is " << userId;
+
+    auto dbclient = drogon::app().getDbClient();
+
+    int fatherFolderId;
+    try{
+        auto result1 = dbclient->execSqlSync("select * from folderOfUser where userId = ?", userId);
+        for(auto row : result1){
+        fatherFolderId = row["folderId"].as<int>();
+    }
+    }catch(drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+    }
+    LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
+     
+    std::string key = "path";
+    std::string path = para[key];
+    LOG_DEBUG<<"path:"<<path;
+    std::string folderName = "";
+    int pathLength = path.size();
+    for(int i = 0; i < pathLength; i++){
+        if(path[i] == '/'){
+            if(folderName.size() != 0){
+                try{
+                    auto result = dbclient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
+                    if(result.size() == 0){
+                        dbclient->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, ?)", folderName, fatherFolderId);
+                    }
+                    auto result2 = dbclient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
+                    for(auto row : result2){
+                        fatherFolderId = row["folderId"].as<int>();
+                    }
+//                    LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
+
+                    folderName = "";
+                }catch(drogon::orm::DrogonDbException &e) {
+                    LOG_DEBUG<<e.base().what();
+                }
+           }
+
+        }else{
+            folderName += path[i];
+        }
+    }
+    int folderId = fatherFolderId;
+    LOG_DEBUG << "folderId is "<< folderId;
 
     std::string fileName = file.getFileName();
 		std::string suffix = "";
@@ -46,8 +88,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     std::reverse(suffix.begin(), suffix.end());
     std::string rename = MD5 + suffix;
 
-    auto dbclient = drogon::app().getDbClient();
-    //用户是否存在
+        //用户是否存在
     try{
         
     } catch (drogon::orm::DrogonDbException &e) {
@@ -102,10 +143,10 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-        auto query = dbclient->execSqlSync("select * from fileOfUser where user_id = ? and file_id = ?;", userId, fileId);
+        auto query = dbclient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?;", userId, fileId);
         if(query.size() == 0){
-            dbclient->execSqlSync("insert into fileOfUser values(?, ?, ?, ?, now() + interval 8 hour, ?);", 
-            userId, fileId, path, fileName, file.fileLength());
+            dbclient->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
+            userId, fileId, path, fileName, file.fileLength(), folderId);
             std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
             dbclient->execSqlSync(sql, file.fileLength(), userId);
         }else{
@@ -131,12 +172,12 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
     LOG_DEBUG<<"文件ID:"<<fileId;
     LOG_DEBUG<<"用户ID:"<<userId;
     try{
-        auto ret = dbclient->execSqlSync("select * from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
+        auto ret = dbclient->execSqlSync("select * from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
         int fileSize = ret.at(0)["fileSize"].as<int>();
         LOG_DEBUG<<"delete file size:"<<fileSize;
         std::string sql = "UPDATE user SET remaining=remaining+? WHERE id=?";
         dbclient->execSqlSync(sql, fileSize, userId);
-        dbclient->execSqlSync("delete from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
+        dbclient->execSqlSync("delete from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
         message["error"] = "Delete failed";
@@ -196,19 +237,29 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     try{
-        std::string path = json["path"].as<std::string>();
-        std::string userId = json["userId"].as<std::string>();
-        LOG_DEBUG<<"path:"<<path;
-        LOG_DEBUG<<"userId:"<<userId;
-        std::string sql = "select * from fileOfUser where user_id=? AND path = ?;";
-        auto future = dbclient->execSqlAsyncFuture(sql, userId, path);
-        auto result = future.get();
-        for (const auto &row : result){
+        int folderId = json["folderId"].as<int>();
+        LOG_DEBUG<<"folderId:"<<folderId;
+        
+        std::string sql = "select * from folder where fatherFolderId = ?;";
+        auto result1 = dbclient->execSqlSync(sql, folderId);
+        for (const auto &row : result1){
             Json::Value item;
-            item["fileId"] = row["file_id"].as<std::string>();
-            item["fileName"] = row["fileName"].as<std::string>();
-            item["time"] = row["time"].as<std::string>();
-            item["path"] = row["path"].as<std::string>();
+            item["type"] = "0";
+            item["id"] = row["folderId"].as<std::string>();
+            item["name"] = row["folderName"].as<std::string>();
+            //item["time"] = row["time"].as<std::string>();
+            //item["path"] = row["path"].as<std::string>();
+            message.append(item);
+        }
+        std::string sql2 = "select * from fileOfUser where folderId = ?;";
+        auto result2 = dbclient->execSqlSync(sql2, folderId);
+        for (const auto &row : result2){
+            Json::Value item;
+            item["type"] = "1";
+            item["id"] = row["fileId"].as<std::string>();
+            item["name"] = row["fileName"].as<std::string>();
+            //item["time"] = row["time"].as<std::string>();
+            //item["path"] = row["path"].as<std::string>();
             message.append(item);
         }
     }catch (drogon::orm::DrogonDbException &e){
@@ -262,8 +313,8 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
         " \
             SELECT f.MD5, f.fileExtension \
             FROM fileOfUser fu \
-            JOIN file f ON fu.file_id = f.id \
-            WHERE fu.user_id = ? AND fu.file_id = ?; \
+            JOIN file f ON fu.fileId = f.Id \
+            WHERE fu.userId = ? AND fu.fileId = ?; \
         ";
         auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
         auto result = future.get();
