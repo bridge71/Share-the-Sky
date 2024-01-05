@@ -127,12 +127,17 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
-    int id = json["id"].as<int>();
+    std::string fileName = json["fileName"].as<std::string>();
+    std::string fileId = json["fileId"].as<std::string>();
+    std::string userId = json["userId"].as<std::string>();
+    LOG_DEBUG<<"文件ID:"<<fileId;
+    LOG_DEBUG<<"用户ID:"<<userId;
     try{
-        dbclient->execSqlSync("delete from file where id = ?;", id);
+        dbclient->execSqlSync("delete from fileOfUser where user_id = ? AND file_id = ?", userId, fileId);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
         message["error"] = "Delete failed";
+        LOG_DEBUG<<e.base().what();
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
