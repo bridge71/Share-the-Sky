@@ -141,6 +141,8 @@ void UserController::loginUser(const HttpRequestPtr& req,
                 LOG_DEBUG<<user["id"].as<int>();
                 json["data"]["userName"] = user["userName"].as<std::string>();
                 LOG_DEBUG<<user["userName"].as<std::string>();
+                json["data"]["permission"] = (user["permissions"].as<int>() == 1);
+                LOG_DEBUG<<"权限："<<user["permissions"].as<int>();
             }
             json["status"] = true;
         }
