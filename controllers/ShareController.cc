@@ -124,3 +124,112 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
     callback(resp);
  
 }
+
+void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
+
+    Json::Value message;
+    auto resJson = req->getJsonObject();
+    int userId, fileId, fileSize;
+    std::string path, fileName, fileExtension;
+    userId = (*resJson)["userId"].as<int>();
+    fileId = (*resJson)["fileId"].as<int>();
+    fileSize = (*resJson)["fileSize"].as<int>();
+
+    fileName = (*resJson)["fileName"].as<std::string>();
+    path = (*resJson)["path"].as<std::string>();
+    fileExtension = (*resJson)["fileExtension"].as<std::string>();
+    fileName += fileExtension;
+    LOG_DEBUG << "userId is " << userId;
+    LOG_DEBUG << "fileName is " << fileName;
+
+    auto dbClient = drogon::app().getDbClient();
+
+        //用户是否存在
+    try{
+        
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+    }
+
+    //查询容量，剩余不够添加文件，不填加
+    LOG_DEBUG<<"file size"<<fileSize;
+    try{
+        std::string sql = "SELECT * FROM user where id=?;";
+        auto result = dbClient->execSqlSync(sql, userId);
+        auto remaining = result.at(0)["remaining"].as<int>();
+        if(fileSize > remaining) {
+            LOG_DEBUG<<"容量不够";
+            message["warning"] = "upload failed";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+        message["warning"] = "upload failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
+    }
+
+    int fatherFolderId;
+    try{
+        auto result1 = dbClient->execSqlSync("select * from folderOfUser where userId = ?", userId);
+        fatherFolderId = result1.at(0)["folderId"].as<int>();
+    }catch(drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+    }
+    LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
+     
+    std::string folderName = "";
+    int pathLength = path.size();
+    for(int i = 0; i < pathLength; i++){
+        if(path[i] == '/'){
+            if(folderName.size() != 0){
+                try{
+                    auto result = dbClient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
+                    if(result.size() == 0){
+                        dbClient->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, ?)", folderName, fatherFolderId);
+                    }
+                    auto result2 = dbClient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
+                    for(auto row : result2){
+                        fatherFolderId = row["folderId"].as<int>();
+                    }
+//                    LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
+
+                    folderName = "";
+                }catch(drogon::orm::DrogonDbException &e) {
+                    LOG_DEBUG<<e.base().what();
+                }
+           }
+
+        }else{
+            folderName += path[i];
+        }
+    }
+    int folderId = fatherFolderId;
+    LOG_DEBUG << "folderId is "<< folderId;
+
+    
+    auto transaction = dbClient->newTransaction();
+    try{
+          auto query = transaction->execSqlSync("select * from fileOfUser where userId = ? and fileId = ? and folderId = ?;",
+          userId, fileId, folderId);
+        if(query.size() == 0){
+            transaction->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
+            userId, fileId, path, fileName, fileSize, folderId);
+            std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
+            transaction->execSqlSync(sql, fileSize, userId);
+        }else{
+            message["warning"] = "file has been saved";
+        }
+        message["code"] = "0";
+    }catch(drogon::orm::DrogonDbException &e){
+        message["error"] = "save failed";
+        transaction->rollback();
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+    callback(resp);
+}
+
