@@ -22,6 +22,9 @@ class UserController : public drogon::HttpController<UserController>
     ADD_METHOD_TO(UserController::selectUser, "/drogon/user/select", Post);
     //登录
     ADD_METHOD_TO(UserController::loginUser, "/drogon/user/login", Post);
+    //管理员列出全部用户
+    ADD_METHOD_TO(UserController::listAllUser, "/drogon/user/listall", Post, "AdminFilter");
+
 
     METHOD_LIST_END
     // your declaration of processing function maybe like this:
@@ -42,6 +45,10 @@ class UserController : public drogon::HttpController<UserController>
         std::function<void (const HttpResponsePtr &)> &&callback
     ) const;
     void loginUser(const HttpRequestPtr& req,
+        std::function<void (const HttpResponsePtr &)> &&callback
+    ) const;
+
+    void listAllUser(const HttpRequestPtr& req,
         std::function<void (const HttpResponsePtr &)> &&callback
     ) const;
 };

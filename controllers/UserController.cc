@@ -153,3 +153,27 @@ void UserController::loginUser(const HttpRequestPtr& req,
     auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     callback(resp);
 }
+
+void UserController::listAllUser(const HttpRequestPtr& req,
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    Json::Value json;
+    auto dbClient = drogon::app().getDbClient();
+    try {
+        std::string sql = "SELECT * FROM user;";
+        auto ret = dbClient->execSqlSync(sql);
+        for (const auto &row : ret){
+            Json::Value item;
+            item["userId"] = row["id"].as<std::string>();
+            item["userName"] = row["userName"].as<std::string>();
+            item["permission"] = row["permissions"].as<int>();
+            json.append(item);
+        }
+        // json["status"] = "ok";
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+        json["error"] = "get user list failed";
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
