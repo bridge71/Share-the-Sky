@@ -23,6 +23,7 @@ class FileController : public drogon::HttpController<FileController>
     ADD_METHOD_TO(FileController::findFileMD5, "/file/findMD5", Post); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::downLoadFile, "/file/download", Post); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::downLoadFileGet, "/file/download?userid={1}&fileid={2}", Get); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::downLoadFileAdmin, "/file/download/admin?fileid={1}", Get, "AdminFilter"); // path is /FileController/{arg1}/{arg2}/list
 
     // ADD_METHOD_TO(FileController::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list
 
@@ -37,6 +38,7 @@ class FileController : public drogon::HttpController<FileController>
     void findFileMD5(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
     void downLoadFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
     void downLoadFileGet(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, std::string userId, std::string fileId) const;
+    void downLoadFileAdmin(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, std::string fileId) const;
 
 };
 namespace drogon{
