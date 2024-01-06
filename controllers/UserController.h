@@ -15,9 +15,12 @@ class UserController : public drogon::HttpController<UserController>
     //增
     ADD_METHOD_TO(UserController::addUser, "/drogon/user/add", Post);
     //删
-    ADD_METHOD_TO(UserController::removeUser, "/drogon/user/remove", Post);
+    ADD_METHOD_TO(UserController::removeUser, "/drogon/user/remove", Post, "AdminFilter");
     //改
     ADD_METHOD_TO(UserController::modifyUser, "/drogon/user/modify", Post);
+    ADD_METHOD_TO(UserController::modifyUserName, "/drogon/user/modify/name", Post);
+    ADD_METHOD_TO(UserController::modifyUserPassword, "/drogon/user/modify/password", Post);
+    ADD_METHOD_TO(UserController::modifyUserPermissions, "/drogon/user/modify/permissions", Post, "AdminFilter");
     //查
     ADD_METHOD_TO(UserController::selectUser, "/drogon/user/select", Post);
     //登录
@@ -37,6 +40,15 @@ class UserController : public drogon::HttpController<UserController>
         std::function<void (const HttpResponsePtr &)> &&callback
     ) const;
     void modifyUser(const HttpRequestPtr& req,
+        std::function<void (const HttpResponsePtr &)> &&callback
+    ) const;
+    void modifyUserName(const HttpRequestPtr& req,
+        std::function<void (const HttpResponsePtr &)> &&callback
+    ) const;
+    void modifyUserPassword(const HttpRequestPtr& req,
+        std::function<void (const HttpResponsePtr &)> &&callback
+    ) const;
+    void modifyUserPermissions(const HttpRequestPtr& req,
         std::function<void (const HttpResponsePtr &)> &&callback
     ) const;
 
