@@ -117,7 +117,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         callback(resp);
         return ;
     }
-    auto transaction = dbClient->newTransaction();
+    auto transaction = dbclient->newTransaction();
     try{
         auto result = transaction->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
@@ -149,10 +149,10 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
           userId, fileId, folderId);
 
         if(query.size() == 0){
-            dbclient->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
+            transaction->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
             userId, fileId, path, fileName, file.fileLength(), folderId);
             std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
-            dbclient->execSqlSync(sql, file.fileLength(), userId);
+            transaction->execSqlSync(sql, file.fileLength(), userId);
         }else{
             message["warning"] = "file has been uploaded";
         }
