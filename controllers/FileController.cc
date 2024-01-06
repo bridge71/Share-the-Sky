@@ -192,6 +192,30 @@ void FileController::findFileMD5(const HttpRequestPtr &req, std::function<void (
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
+
+void FileController::listAllFile(const HttpRequestPtr& req, 
+    std::function<void (const HttpResponsePtr &)> &&callback
+) const {
+    Json::Value json;
+    auto dbClient = drogon::app().getDbClient();
+    try {
+        std::string sql = "SELECT * FROM file;";
+        auto ret = dbClient->execSqlSync(sql);
+        for (const auto &row : ret){
+            Json::Value item;
+            item["fileId"] = row["id"].as<std::string>();
+            item["fileName"] = row["MD5"].as<std::string>()+row["fileExtension"].as<std::string>();
+            json.append(item);
+        }
+        // json["status"] = "ok";
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+        json["error"] = "get file list failed";
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
+
 void FileController::listFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;

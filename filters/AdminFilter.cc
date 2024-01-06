@@ -34,7 +34,7 @@ void AdminFilter::doFilter(const HttpRequestPtr &req,
     }
     //Check failed
     Json::Value message;
-    message["status"] = "the user is not admin";
+    message["message"] = "permission denied";
     LOG_DEBUG<<"the user is not admin, userId:"<<userId;
     auto res = drogon::HttpResponse::newHttpJsonResponse(message);
     fcb(res);
