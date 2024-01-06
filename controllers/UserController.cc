@@ -10,6 +10,7 @@ void UserController::addUser(const HttpRequestPtr& req,
     std::function<void (const HttpResponsePtr &)> &&callback
 ) const {
     auto dbClient = drogon::app().getDbClient();
+    auto transaction = dbClient->newTransaction();
     std::string sql = "INSERT INTO user(userName, passWord, permissions, capacity, remaining) VALUE(?, ?, ?, ?, ?)";
     std::string userName, passWord;
     auto resJson = req->getJsonObject();
@@ -19,24 +20,25 @@ void UserController::addUser(const HttpRequestPtr& req,
     LOG_DEBUG<<passWord;
     Json::Value json;
     try {
-        dbClient->execSqlSync(sql, userName, passWord, 2, 1*GB, 1*GB);
-        auto result = dbClient->execSqlSync("select max(id) from user");
+        transaction->execSqlSync(sql, userName, passWord, 2, 1*GB, 1*GB);
+        auto result = transaction->execSqlSync("select max(id) from user");
         std::string  id;
         for(auto row : result){
             id = row["max(id)"].as<std::string>();
         }
-        dbClient->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, 0)", id);
-        auto result2 = dbClient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = 0", id);
+        transaction->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, 0)", id);
+        auto result2 = transaction->execSqlSync("select * from folder where folderName = ? and fatherFolderId = 0", id);
         int folderId;
         for(auto row : result2){
             folderId = row["folderId"].as<int>();
         }
-        dbClient->execSqlSync("insert into folderOfUser (folderId, userId) values(?, ?)", folderId, id); 
+        transaction->execSqlSync("insert into folderOfUser (folderId, userId) values(?, ?)", folderId, id); 
         json["status"] = true;
         // json['data']['userId'] = 
     } catch (const drogon::orm::DrogonDbException &e){
         json["status"] = false;
         LOG_DEBUG<<e.base().what();
+        transaction->rollback();
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     callback(resp);
