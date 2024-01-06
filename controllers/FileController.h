@@ -18,6 +18,7 @@ class FileController : public drogon::HttpController<FileController>
     ADD_METHOD_TO(FileController::addFile, "/file/add", Post); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::deleteFile, "/file/delete", Post); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::listFile, "/file/list", Post); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::listAllFile, "/file/alllist", Post, "AdminFilter"); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::findFileName, "/file/findName", Post); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::findFileMD5, "/file/findMD5", Post); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::downLoadFile, "/file/download", Post); // path is /FileController/{arg1}/{arg2}/list
@@ -31,6 +32,7 @@ class FileController : public drogon::HttpController<FileController>
     void addFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
     void deleteFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
     void listFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
+    void listAllFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
     void findFileName(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
     void findFileMD5(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
     void downLoadFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, Json::Value json) const;
