@@ -4,10 +4,13 @@
 using namespace drogon;
 void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
 
-    unsigned int fileId, userId, time, shareId;
+    unsigned int fileId, userId, time;
+    std::string fileName;
     auto resJson = req->getJsonObject();
     userId = (*resJson)["userId"].as<unsigned int>();
     fileId = (*resJson)["fileId"].as<unsigned int>();
+    fileName = (*resJson)["fileName"].as<std::string>();
+
     // change time zone to UTF+8
     time = (*resJson)["time"].as<unsigned int>() + 8;
 
@@ -29,7 +32,6 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
     unsigned int offset = dis(gen);  
     LOG_DEBUG << "offset is " << offset;
     std::string code = "";
-    std::string number;
     const std::string characters = "opqr59014lmnEvwxyBF23GCDLMN678HIJKAstuOUVWXYZabcSTdefghPQRijkz";  
     unsigned int myRandom = ((time * fileId  + time ) * time + userId) * time + fileId * time + offset;
     for(int i = 0; i < 6; i++){
@@ -41,16 +43,16 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
     auto dbClient = drogon::app().getDbClient();
     try{
        // write share information to share table
-        dbClient->execSqlSync("insert into share(fileId, userId, time, code) values(?, ?, now() + interval ? hour, ?)", 
-            fileId, userId, time, code);
+        dbClient->execSqlSync("insert into share(fileId, userId, time, code, fileName) values(?, ?, now() + interval ? hour, ?, ?)", 
+            fileId, userId, time, code, fileName);
         // gain share_id
         auto result = dbClient->execSqlSync("select * from share where fileId = ? and userId = ? and code = ?",
             fileId, userId, code);	
         int shareSize = result.size();
-        number = result.at(shareSize - 1)["shareId"].as<std::string>();
+        int shareId = result.at(shareSize - 1)["shareId"].as<int>();
         
-        message["path"] = "/" + number + "/" + code;
-        message["code"] = "0";
+        message["shareId"] = shareId;
+        message["code"] = code;
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "share failed";
     }
@@ -58,35 +60,38 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
     callback(resp);
  
 }
-void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback,
-	std::string shareId, std::string shareCode)const{
+void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
+
+    auto resJson = req->getJsonObject();
+    int shareId;
+    std::string code;
+    shareId = (*resJson)["shareId"].as<int>();
+    code = (*resJson)["code"].as<std::string>();
 
     auto dbClient = drogon::app().getDbClient();
     Json::Value message;
-    int shareIdInt = 0;
-    int len = shareId.size();
-    for(int i = 0; i < len ; i++){
-      shareIdInt = shareIdInt * 10 + shareId[i] - '0';
-    }
-    LOG_ERROR << "share Id is "<< shareIdInt <<"  shareCode is "<<shareCode;
+       
+    LOG_ERROR << "shareId is "<< shareId <<"  code is "<<code;
 
     try{
      // check if it is a legal share
-        auto result = dbClient->execSqlSync("select * from share where shareId = ? and code = ?", shareIdInt, shareCode);
+        auto result = dbClient->execSqlSync("select * from share where shareId = ? and code = ?", shareId, code);
 
         if(result.size() == 0){
-            message["code"] = 1;
+            message["status"] = 1;
             message["error"] = "no such share";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
          }
       // gain information from table share
-         std::string timeLimit, userId, fileId;
+         std::string timeLimit, fileName;
+         int userId, fileId;
          for(auto row : result){
              timeLimit = row["time"].as<std::string>();
-             userId = row["userId"].as<std::string>();
-             fileId = row["fileId"].as<std::string>();
+             userId = row["userId"].as<int>();
+             fileId = row["fileId"].as<int>();
+             fileName = row["fileName"].as<std::string>();
          }
 
          auto nowTime = dbClient->execSqlSync("select now() + interval 8 hour");
@@ -97,33 +102,25 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
          LOG_ERROR << "now is " << timeNow;
          // check timeLimit
          if(timeLimit >= timeNow){
-             std::string sql = 
-               " \
-                   SELECT f.MD5, f.fileExtension \
-                   FROM fileOfUser fu \
-                   JOIN file f ON fu.fileId = f.Id \
-                   WHERE fu.userId = ? AND fu.fileId = ?; \
-               ";
-             auto future = dbClient->execSqlAsyncFuture(sql, userId, fileId);
-             auto result = future.get();
-
-             std::string MD5, suffix;
-             MD5 = result.at(0)["MD5"].as<std::string>();
-             suffix = result.at(0)["fileExtension"].as<std::string>();
-             
-             // note the location
-             auto resp = drogon::HttpResponse::newFileResponse("../uploads/"+MD5+suffix);
-             callback(resp); 
+             auto result = dbClient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?",
+                 userId, fileId); 
+             int fileSize = result.at(0)["fileSize"].as<int>(); 
+             message["fileSize"] = fileSize;
+             auto result2 = dbClient->execSqlSync("select * from file where id = ?", fileId);
+             std::string fileExtension = result2.at(0)["fileExtension"].as<std::string>();
+             message["fileExtension"] = fileExtension;
+             message["fileId"] = fileId;
+             message["fileName"] = fileName;
          }else{
-            message["code"] = 1;
+            message["status"] = 1;
             message["warning"] = "the share beyonds time limit";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
-            callback(resp);
-            return ;
+            
          }
     }catch(drogon::orm::DrogonDbException &e){
-        message["code"] = 1;
+        message["status"] = 1;
         message["error"] = "get share failed";
     }
-    
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+    callback(resp);
+ 
 }
