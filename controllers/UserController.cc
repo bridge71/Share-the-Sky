@@ -20,6 +20,18 @@ void UserController::addUser(const HttpRequestPtr& req,
     Json::Value json;
     try {
         dbClient->execSqlSync(sql, userName, passWord, 2, 1*GB, 1*GB);
+        auto result = dbClient->execSqlSync("select max(id) from user");
+        std::string  id;
+        for(auto row : result){
+            id = row["max(id)"].as<std::string>();
+        }
+        dbClient->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, 0)", id);
+        auto result2 = dbClient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = 0", id);
+        int folderId;
+        for(auto row : result2){
+            folderId = row["folderId"].as<int>();
+        }
+        dbClient->execSqlSync("insert into folderOfUser (folderId, userId) values(?, ?)", folderId, id); 
         json["status"] = true;
         // json['data']['userId'] = 
     } catch (const drogon::orm::DrogonDbException &e){
