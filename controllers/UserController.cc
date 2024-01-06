@@ -237,7 +237,7 @@ void UserController::listAllUser(const HttpRequestPtr& req,
             Json::Value item;
             item["userId"] = row["id"].as<std::string>();
             item["userName"] = row["userName"].as<std::string>();
-            item["permission"] = row["permissions"].as<int>();
+            item["userType"] = row["permissions"].as<int>();
             json.append(item);
         }
         // json["status"] = "ok";
