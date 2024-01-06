@@ -117,7 +117,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         callback(resp);
         return ;
     }
-    auto transaction = dbClient->newTransaction();
+    auto transaction = dbclient->newTransaction();
     try{
         auto result = transaction->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
