@@ -33,19 +33,48 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     }
     LOG_ERROR << "userId is " << userId;
 
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
+
+        //用户是否存在
+    try{
+        
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+    }
+
+    //查询容量，剩余不够添加文件，不填加
+    LOG_DEBUG<<"file size"<<file.fileLength();
+    try{
+        std::string sql = "SELECT * FROM user where id=?;";
+        auto result = dbClient->execSqlSync(sql, userId);
+        auto remaining = result.at(0)["remaining"].as<int>();
+        auto fileSize = file.fileLength();
+        if(fileSize > remaining) {
+            LOG_DEBUG<<"容量不够";
+            message["warning"] = "upload failed";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+
+    } catch (drogon::orm::DrogonDbException &e) {
+        LOG_DEBUG<<e.base().what();
+        message["warning"] = "upload failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
+    }
 
     int fatherFolderId;
     try{
-        auto result1 = dbclient->execSqlSync("select * from folderOfUser where userId = ?", userId);
-        for(auto row : result1){
-        fatherFolderId = row["folderId"].as<int>();
-    }
+        auto result1 = dbClient->execSqlSync("select * from folderOfUser where userId = ?", userId);
+        fatherFolderId = result1.at(0)["folderId"].as<int>();
     }catch(drogon::orm::DrogonDbException &e) {
         LOG_DEBUG<<e.base().what();
     }
     LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
      
+
     std::string key = "path";
     std::string path = para[key];
     LOG_DEBUG<<"path:"<<path;
@@ -55,11 +84,11 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         if(path[i] == '/'){
             if(folderName.size() != 0){
                 try{
-                    auto result = dbclient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
+                    auto result = dbClient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
                     if(result.size() == 0){
-                        dbclient->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, ?)", folderName, fatherFolderId);
+                        dbClient->execSqlSync("insert into folder (folderName, fatherFolderId) values(?, ?)", folderName, fatherFolderId);
                     }
-                    auto result2 = dbclient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
+                    auto result2 = dbClient->execSqlSync("select * from folder where folderName = ? and fatherFolderId = ?", folderName, fatherFolderId);
                     for(auto row : result2){
                         fatherFolderId = row["folderId"].as<int>();
                     }
@@ -88,50 +117,19 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     std::reverse(suffix.begin(), suffix.end());
     std::string rename = MD5 + suffix;
 
-        //用户是否存在
+    
+    auto transaction = dbClient->newTransaction();
     try{
-        
-    } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
-    }
-
-    //查询容量，剩余不够添加文件，不填加
-    LOG_DEBUG<<"file size"<<file.fileLength();
-    try{
-        std::string sql = "SELECT * FROM user where id=?;";
-        auto result = dbclient->execSqlSync(sql, userId);
-        auto remaining = result.at(0)["remaining"].as<int>();
-        auto fileSize = file.fileLength();
-        if(fileSize > remaining) {
-            LOG_DEBUG<<"容量不够";
-            message["warning"] = "upload failed";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
-            callback(resp);
-            return ;
-        }
-
-    } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
-        message["warning"] = "upload failed";
-        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
-        callback(resp);
-        return ;
-    }
-
-    try{
-        auto result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
+        auto result = dbClient->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
         if(sum == 0){
             file.saveAs(rename);
         //  dbclient->execSqlSync("insert into file(fileType, MD5) values(?, ?)", fileType, MD5);
-            dbclient->execSqlSync("insert into file(MD5, fileExtension) values(?, ?)", MD5, suffix);
-            result = dbclient->execSqlSync("select * from file where MD5 = ?", MD5);
+            dbClient->execSqlSync("insert into file(MD5, fileExtension) values(?, ?)", MD5, suffix);
+            result = dbClient->execSqlSync("select * from file where MD5 = ?", MD5);
         }
         
-        int fileId;
-        for(const auto &row : result){
-            fileId = row["id"].as<int>();
-        }
+        int fileId = result.at(0)["id"].as<int>();
        
         auto fileEnum = file.getFileType();
         std::string fileType;
@@ -143,14 +141,15 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-        auto query = dbclient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?;", userId, fileId);
+        auto query = dbClient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?;", userId, fileId);
         if(query.size() == 0){
-            dbclient->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
+            transaction->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
             userId, fileId, path, fileName, file.fileLength(), folderId);
             std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
-            dbclient->execSqlSync(sql, file.fileLength(), userId);
+            transaction->execSqlSync(sql, file.fileLength(), userId);
         }else{
             message["warning"] = "file has been uploaded";
+            transaction->rollback();
         }
 
         message["code"] = "0";
@@ -164,7 +163,8 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
 
 
 void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
+    auto transaction = dbClient->newTransaction();
     Json::Value message;
     std::string fileName = json["fileName"].as<std::string>();
     std::string fileId = json["fileId"].as<std::string>();
@@ -172,28 +172,29 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
     LOG_DEBUG<<"文件ID:"<<fileId;
     LOG_DEBUG<<"用户ID:"<<userId;
     try{
-        auto ret = dbclient->execSqlSync("select * from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
+        auto ret = dbClient->execSqlSync("select * from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
         int fileSize = ret.at(0)["fileSize"].as<int>();
         LOG_DEBUG<<"delete file size:"<<fileSize;
         std::string sql = "UPDATE user SET remaining=remaining+? WHERE id=?";
-        dbclient->execSqlSync(sql, fileSize, userId);
-        dbclient->execSqlSync("delete from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
+        transaction->execSqlSync(sql, fileSize, userId);
+        transaction->execSqlSync("delete from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
         message["error"] = "Delete failed";
         LOG_DEBUG<<e.base().what();
+        transaction->rollback();
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
 void FileController::findFileName(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     Json::Value message;
     try{
         std::string fileName = json["fileName"].as<std::string>();
         std::string sql = "select * from file where fileName = ?;";
         std::cout<<sql;
-        auto future = dbclient->execSqlAsyncFuture(sql, fileName);
+        auto future = dbClient->execSqlAsyncFuture(sql, fileName);
         auto result = future.get();
         for (const auto &row : result){
             Json::Value item;
@@ -211,12 +212,12 @@ void FileController::findFileName(const HttpRequestPtr &req, std::function<void 
     callback(resp);
 }
 void FileController::findFileMD5(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     Json::Value message;
     try{
         std::string MD5 = json["MD5"].as<std::string>();
         std::string sql = "select * from file where MD5 = ?;";
-        auto future = dbclient->execSqlAsyncFuture(sql, MD5);
+        auto future = dbClient->execSqlAsyncFuture(sql, MD5);
         auto result = future.get();
         for (const auto &row : result){
             Json::Value item;
@@ -234,14 +235,14 @@ void FileController::findFileMD5(const HttpRequestPtr &req, std::function<void (
     callback(resp);
 }
 void FileController::listFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     Json::Value message;
     try{
         int folderId = json["folderId"].as<int>();
         LOG_DEBUG<<"folderId:"<<folderId;
         
         std::string sql = "select * from folder where fatherFolderId = ?;";
-        auto result1 = dbclient->execSqlSync(sql, folderId);
+        auto result1 = dbClient->execSqlSync(sql, folderId);
         for (const auto &row : result1){
             Json::Value item;
             item["type"] = "0";
@@ -252,7 +253,7 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
             message.append(item);
         }
         std::string sql2 = "select * from fileOfUser where folderId = ?;";
-        auto result2 = dbclient->execSqlSync(sql2, folderId);
+        auto result2 = dbClient->execSqlSync(sql2, folderId);
         for (const auto &row : result2){
             Json::Value item;
             item["type"] = "1";
@@ -274,12 +275,12 @@ void FileController::downLoadFile(const HttpRequestPtr& req,
     std::function<void (const HttpResponsePtr &)> &&callback, 
     Json::Value json
 ) const {
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     Json::Value message;
     try{
         std::string MD5 = json["MD5"].as<std::string>();
         std::string sql = "select * from file where MD5 = ?";
-        auto future = dbclient->execSqlAsyncFuture(sql, MD5);
+        auto future = dbClient->execSqlAsyncFuture(sql, MD5);
         auto result = future.get();
         if(result.empty()) {
             message["error"] = "download failed";
@@ -305,7 +306,7 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
     std::string userId,
     std::string fileId
 ) const{
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     Json::Value message;
     std::string MD5, suffix;
     try{
@@ -316,7 +317,7 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
             JOIN file f ON fu.fileId = f.Id \
             WHERE fu.userId = ? AND fu.fileId = ?; \
         ";
-        auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
+        auto future = dbClient->execSqlAsyncFuture(sql, userId, fileId);
         auto result = future.get();
         if(result.empty()) {
             LOG_DEBUG<<"没有查询到文件";

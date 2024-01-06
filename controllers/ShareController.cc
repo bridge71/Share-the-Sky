@@ -1,5 +1,6 @@
 #include "ShareController.h"
 #include <typeinfo>
+#include <random>
 using namespace drogon;
 void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
 
@@ -16,29 +17,38 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
       auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
       callback(resp);
       return ;
-   }
+    }
 
      // gain random code 
+    std::random_device rd;  
+    std::mt19937 gen(rd());  
+    int minValue = 1;  
+    int maxValue = 10000;  
+  
+    std::uniform_int_distribution<> dis(minValue, maxValue);  
+    unsigned int offset = dis(gen);  
+    LOG_DEBUG << "offset is " << offset;
     std::string code = "";
     std::string number;
     const std::string characters = "opqr59014lmnEvwxyBF23GCDLMN678HIJKAstuOUVWXYZabcSTdefghPQRijkz";  
-    unsigned int myRandom = ((time * fileId  + time ) * time + userId) * time + fileId * time;
+    unsigned int myRandom = ((time * fileId  + time ) * time + userId) * time + fileId * time + offset;
     for(int i = 0; i < 6; i++){
       myRandom = (myRandom + i * time + i * fileId)  * time + fileId;
       code += characters[myRandom % 62];
     }
     LOG_ERROR << "code is " << code;
 
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     try{
      // write share information to share table
-      dbclient->execSqlSync("insert into share(fileId, userId, time, code) values(?, ?, now() + interval ? hour, ?)", 
-          userId, fileId, time, code);
+      dbClient->execSqlSync("insert into share(fileId, userId, time, code) values(?, ?, now() + interval ? hour, ?)", 
+          fileId, userId, time, code);
       // gain share_id
-      auto result = dbclient->execSqlSync("select max(shareId) from share");	
-      for(auto row : result){
-        number = row["max(shareId)"].as<std::string>();
-      }
+      auto result = dbClient->execSqlSync("select * from share where fileId = ? and userId = ? and code = ?",
+          fileId, userId, code);	
+      int shareSize = result.size();
+      number = result.at(shareSize - 1)["shareId"].as<std::string>();
+      
       message["path"] = "/" + number + "/" + code;
       message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
@@ -51,7 +61,7 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
 void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback,
 	std::string shareId, std::string shareCode)const{
 
-    auto dbclient = drogon::app().getDbClient();
+    auto dbClient = drogon::app().getDbClient();
     Json::Value message;
     int shareIdInt = 0;
     int len = shareId.size();
@@ -62,7 +72,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
 
     try{
      // check if it is a legal share
-      auto result = dbclient->execSqlSync("select * from share where shareId = ? and code = ?", shareIdInt, shareCode);
+      auto result = dbClient->execSqlSync("select * from share where shareId = ? and code = ?", shareIdInt, shareCode);
 
       if(result.size() == 0){
         message["code"] = 1;
@@ -79,7 +89,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
       fileId = row["fileId"].as<std::string>();
     }
 
-    auto nowTime = dbclient->execSqlSync("select now() + interval 8 hour");
+    auto nowTime = dbClient->execSqlSync("select now() + interval 8 hour");
     std::string timeNow;
     for(auto row : nowTime){
       timeNow = row["now() + interval 8 hour"].as<std::string>();
@@ -94,7 +104,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
             JOIN file f ON fu.fileId = f.Id \
             WHERE fu.userId = ? AND fu.fileId = ?; \
         ";
-      auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
+      auto future = dbClient->execSqlAsyncFuture(sql, userId, fileId);
       auto result = future.get();
 
       std::string MD5, suffix;
