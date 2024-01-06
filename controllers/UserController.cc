@@ -209,14 +209,17 @@ void UserController::loginUser(const HttpRequestPtr& req,
         if(ret.empty()) {
             json["status"] = false;
         }else{
-            for (const auto &user:ret) {
-                json["data"]["userId"] = user["id"].as<int>();
-                LOG_DEBUG<<user["id"].as<int>();
-                json["data"]["userName"] = user["userName"].as<std::string>();
-                LOG_DEBUG<<user["userName"].as<std::string>();
-                json["data"]["permission"] = (user["permissions"].as<int>() == 1);
-                LOG_DEBUG<<"权限："<<user["permissions"].as<int>();
-            }
+            json["data"]["userId"] = ret.at(0)["id"].as<int>();
+            LOG_DEBUG<<"userId:"<<ret.at(0)["id"].as<int>();
+            json["data"]["userName"] = ret.at(0)["userName"].as<std::string>();
+            LOG_DEBUG<<"userName:"<<ret.at(0)["userName"].as<std::string>();
+            json["data"]["permission"] = (ret.at(0)["permissions"].as<int>() == 1);
+            LOG_DEBUG<<"权限："<<ret.at(0)["permissions"].as<int>();
+            int userId = ret.at(0)["id"].as<int>();
+            sql = "SELECT * FROM folderOfUser WHERE userId=?;";
+            auto ret2 = dbClient->execSqlSync(sql, userId);
+            json["data"]["rootFolder"] = ret2.at(0)["folderId"].as<std::string>();
+            LOG_DEBUG<<"根目录:"<<ret2.at(0)["folderId"].as<std::string>();
             json["status"] = true;
         }
     } catch (const drogon::orm::DrogonDbException &e) {
@@ -239,7 +242,7 @@ void UserController::listAllUser(const HttpRequestPtr& req,
             Json::Value item;
             item["userId"] = row["id"].as<std::string>();
             item["userName"] = row["userName"].as<std::string>();
-            item["permission"] = row["permissions"].as<int>();
+            item["userType"] = row["permissions"].as<int>();
             json.append(item);
         }
         // json["status"] = "ok";
