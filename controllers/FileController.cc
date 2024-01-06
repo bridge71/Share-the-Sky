@@ -120,13 +120,13 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     
     auto transaction = dbClient->newTransaction();
     try{
-        auto result = dbClient->execSqlSync("select * from file where MD5 = ?", MD5);
+        auto result = transaction->execSqlSync("select * from file where MD5 = ?", MD5);
         int sum = result.size();
         if(sum == 0){
             file.saveAs(rename);
         //  dbclient->execSqlSync("insert into file(fileType, MD5) values(?, ?)", fileType, MD5);
-            dbClient->execSqlSync("insert into file(MD5, fileExtension) values(?, ?)", MD5, suffix);
-            result = dbClient->execSqlSync("select * from file where MD5 = ?", MD5);
+            transaction->execSqlSync("insert into file(MD5, fileExtension) values(?, ?)", MD5, suffix);
+            result = transaction->execSqlSync("select * from file where MD5 = ?", MD5);
         }
         
         int fileId = result.at(0)["id"].as<int>();
@@ -141,7 +141,8 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             case 6 : fileType = "image"; break;
             default : fileType = "unknown";
         } 
-        auto query = dbClient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?;", userId, fileId);
+        auto query = transaction->execSqlSync("select * from fileOfUser where userId = ? and fileId = ? and folderId = ?;",
+          userId, fileId, folderId);
         if(query.size() == 0){
             transaction->execSqlSync("insert into fileOfUser (userId, fileId, path, fileName, time, fileSize, folderId) values(?, ?, ?, ?, now() + interval 8 hour, ?, ?);", 
             userId, fileId, path, fileName, file.fileLength(), folderId);
@@ -149,12 +150,12 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             transaction->execSqlSync(sql, file.fileLength(), userId);
         }else{
             message["warning"] = "file has been uploaded";
-            transaction->rollback();
         }
 
         message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
         message["error"] = "Add failed";
+        transaction->rollback();
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
