@@ -12,9 +12,9 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     auto para = fileUpload.getParameters();
     auto allFile = fileUpload.getFiles();    
     if(para.size()!= 2 || allFile.size() != 1){
-        LOG_DEBUG<<"文件/参数错误"<<"参数："<<para.size()<<"文件："<<allFile.size();
-        message["code"] = 1;
-        message["error"] = "parameters error, add failed";
+        LOG_ERROR<<"文件/参数错误"<<"参数："<<para.size()<<"文件："<<allFile.size();
+        message["status"] = 2;
+        message["error"] = "parameters error, upload failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
         return;
@@ -31,7 +31,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     for(int i = 0; i < lenUserId; i++){
         userId = userId * 10 + temp[i] - '0';
     }
-    LOG_ERROR << "userId is " << userId;
+    LOG_DEBUG << "userId is " << userId;
 
     auto dbclient = drogon::app().getDbClient();
 
@@ -42,15 +42,24 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         fatherFolderId = row["folderId"].as<int>();
     }
     }catch(drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
     }
-    LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
+    LOG_DEBUG << "rootFolderId is "<< fatherFolderId;
      
     std::string key = "path";
     std::string path = para[key];
     LOG_DEBUG<<"path:"<<path;
     std::string folderName = "";
     int pathLength = path.size();
+    if(path[pathLength - 1] != '/'){
+        LOG_ERROR<<"path error"<<"  path: "<<path;
+        message["status"] = 2;
+        message["error"] = "path error, upload failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return;
+    }
+
     for(int i = 0; i < pathLength; i++){
         if(path[i] == '/'){
             if(folderName.size() != 0){
@@ -92,7 +101,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     try{
         
     } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
     }
 
     //查询容量，剩余不够添加文件，不填加
@@ -103,16 +112,18 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
         auto remaining = result.at(0)["remaining"].as<int>();
         auto fileSize = file.fileLength();
         if(fileSize > remaining) {
-            LOG_DEBUG<<"容量不够";
-            message["warning"] = "upload failed";
+            LOG_ERROR<<"容量不够";
+            message["status"] = 2;
+            message["error"] = "volume lack, upload failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
         }
 
     } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
-        message["warning"] = "upload failed";
+        LOG_ERROR<<e.base().what();
+        message["status"] = 1;
+        message["error"] = "error at point1, upload failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
         return ;
@@ -154,14 +165,16 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
             std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
             transaction->execSqlSync(sql, file.fileLength(), userId);
         }else{
-            message["warning"] = "file has been uploaded";
+            message["status"] = 1;
+            message["warning"] = "file has been uploaded, don't upload repeately";
         }
 
-        message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
-        message["error"] = "Add failed";
+        message["status"] = 2;
+        message["error"] = "error at point 2, upload failed";
         transaction->rollback();
     }
+    message["status"] = 0;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
@@ -185,6 +198,7 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
         dbclient->execSqlSync("delete from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
         message["code"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
         message["error"] = "Delete failed";
         LOG_DEBUG<<e.base().what();
     }
@@ -210,6 +224,7 @@ void FileController::findFileName(const HttpRequestPtr &req, std::function<void 
             message.append(item);
         }
     }catch (drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
         message["error"] = "find file by Name failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -233,6 +248,7 @@ void FileController::findFileMD5(const HttpRequestPtr &req, std::function<void (
             message.append(item);
         }
     }catch (drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
         message["error"] = "find file by MD5 failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -255,7 +271,8 @@ void FileController::listAllFile(const HttpRequestPtr& req,
         }
         // json["status"] = "ok";
     } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
+        json["status"] = 2;
         json["error"] = "get file list failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
@@ -292,7 +309,8 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
             message.append(item);
         }
     }catch (drogon::orm::DrogonDbException &e){
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
+        message["status"] = 2;
         message["error"] = "list failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -317,6 +335,7 @@ void FileController::downLoadFile(const HttpRequestPtr& req,
             return ;
         }
     }catch (drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
         message["error"] = "download failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
@@ -348,8 +367,9 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
         auto future = dbclient->execSqlAsyncFuture(sql, userId, fileId);
         auto result = future.get();
         if(result.empty()) {
-            LOG_DEBUG<<"没有查询到文件";
-            message["error"] = "download failed";
+            LOG_ERROR<<"没有查询到文件";
+            message["status"] = 2;
+            message["error"] = "there is no such file, download failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
@@ -358,7 +378,8 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
         suffix = result.at(0)["fileExtension"].as<std::string>();
         suffix = result.at(0)["fileExtension"].as<std::string>();
     }catch (drogon::orm::DrogonDbException &e){
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
+        message["status"] = 2;
         message["error"] = "download failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
@@ -389,8 +410,9 @@ void FileController::downLoadFileAdmin(const HttpRequestPtr& req,
         auto future = dbclient->execSqlAsyncFuture(sql, fileId);
         auto result = future.get();
         if(result.empty()) {
-            LOG_DEBUG<<"没有查询到文件";
-            message["error"] = "download failed";
+            LOG_ERROR<<"没有查询到文件";
+            message["status"] = 2;
+            message["error"] = "there is no such file, download failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
@@ -399,6 +421,7 @@ void FileController::downLoadFileAdmin(const HttpRequestPtr& req,
         suffix = result.at(0)["fileExtension"].as<std::string>();
     }catch (drogon::orm::DrogonDbException &e){
         LOG_DEBUG<<e.base().what();
+        message["status"] = 2;
         message["error"] = "download failed";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);

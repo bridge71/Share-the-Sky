@@ -18,13 +18,15 @@ void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void
            folderName, fatherFolderId);
         if(result.size() != 0){
             message["warning"] = "folder has been made";
+            message["status"] = 1;
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
         }
     }catch(drogon::orm::DrogonDbException &e){
         LOG_ERROR << e.base().what();
-        message["error"] = "make failed";
+        message["status"] = 2;
+        message["error"] = "error when selecting";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
         return ;
@@ -38,8 +40,10 @@ void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void
         int folderId = result.at(0)["folderId"].as<int>();
         message["folderId"] = folderId;
         message["folderName"] = folderName;
+        message["status"] = 0;
     }catch(drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
+        message["status"] = 2;
         message["error"] = "make failed";
     }
 

@@ -16,7 +16,9 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
 
     Json::Value message;
     if(time > 60000008){
+        message["status"] = 2;
         message["error"] = "time is too large, share failed";
+        LOG_ERROR << "time is too large";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
         return ;
@@ -38,7 +40,7 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
         myRandom = (myRandom + i * time + i * fileId)  * time + fileId;
         code += characters[myRandom % 62];
     }
-    LOG_ERROR << "code is " << code;
+    LOG_DEBUG << "code is " << code;
 
     auto dbClient = drogon::app().getDbClient();
     try{
@@ -50,10 +52,11 @@ void ShareController::shareFile(const HttpRequestPtr &req, std::function<void (c
             fileId, userId, code);	
         int shareSize = result.size();
         int shareId = result.at(shareSize - 1)["shareId"].as<int>();
-        
+        message["status"] = 0; 
         message["shareId"] = shareId;
         message["code"] = code;
     }catch(drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
         message["error"] = "share failed";
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
@@ -71,7 +74,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
     auto dbClient = drogon::app().getDbClient();
     Json::Value message;
        
-    LOG_ERROR << "shareId is "<< shareId <<"  code is "<<code;
+    LOG_DEBUG << "shareId is "<< shareId <<"  code is "<<code;
 
     try{
      // check if it is a legal share
@@ -79,7 +82,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
 
         if(result.size() == 0){
             message["status"] = 1;
-            message["error"] = "no such share";
+            message["warning"] = "no such share";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
@@ -99,7 +102,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
          for(auto row : nowTime){
              timeNow = row["now() + interval 8 hour"].as<std::string>();
          }
-         LOG_ERROR << "now is " << timeNow;
+         LOG_DEBUG << "now is " << timeNow;
          // check timeLimit
          if(timeLimit >= timeNow){
              auto result = dbClient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?",
@@ -111,6 +114,7 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
              message["fileExtension"] = fileExtension;
              message["fileId"] = fileId;
              message["fileName"] = fileName;
+             message["status"] = 0;
          }else{
             message["status"] = 1;
             message["warning"] = "the share beyonds time limit";
@@ -148,7 +152,7 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
     try{
         
     } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
     }
 
     //查询容量，剩余不够添加文件，不填加
@@ -158,7 +162,8 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
         auto result = dbClient->execSqlSync(sql, userId);
         auto remaining = result.at(0)["remaining"].as<int>();
         if(fileSize > remaining) {
-            LOG_DEBUG<<"容量不够";
+            LOG_ERROR<<"容量不够";
+            message["status"] = 1;
             message["warning"] = "upload failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
@@ -166,8 +171,9 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
         }
 
     } catch (drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
-        message["warning"] = "upload failed";
+        LOG_ERROR<<e.base().what();
+        message["status"] = 2;
+        message["error"] = "error at point 1";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
         callback(resp);
         return ;
@@ -178,7 +184,12 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
         auto result1 = dbClient->execSqlSync("select * from folderOfUser where userId = ?", userId);
         fatherFolderId = result1.at(0)["folderId"].as<int>();
     }catch(drogon::orm::DrogonDbException &e) {
-        LOG_DEBUG<<e.base().what();
+        LOG_ERROR<<e.base().what();
+        message["status"] = 2;
+        message["error"] = "error at point 2";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
     }
     LOG_DEBUG << "fatherFolderId is "<< fatherFolderId;
      
@@ -200,6 +211,12 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
 
                     folderName = "";
                 }catch(drogon::orm::DrogonDbException &e) {
+                    message["status"] = 2;
+                    message["error"] = "error at point 3";
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+                    callback(resp);
+                    return ;
+
                     LOG_DEBUG<<e.base().what();
                 }
            }
@@ -221,11 +238,13 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
             userId, fileId, path, fileName, fileSize, folderId);
             std::string sql = "UPDATE user SET remaining=remaining-? WHERE id=?";
             transaction->execSqlSync(sql, fileSize, userId);
+            message["status"] = 0;
         }else{
+            message["status"] = 1;
             message["warning"] = "file has been saved";
         }
-        message["code"] = "0";
     }catch(drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
         message["error"] = "save failed";
         transaction->rollback();
     }
