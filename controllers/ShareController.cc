@@ -138,7 +138,7 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
     fileName = (*resJson)["fileName"].as<std::string>();
     path = (*resJson)["path"].as<std::string>();
     fileExtension = (*resJson)["fileExtension"].as<std::string>();
-    fileName += fileExtension;
+    // fileName += fileExtension;
     LOG_DEBUG << "userId is " << userId;
     LOG_DEBUG << "fileName is " << fileName;
 
@@ -152,7 +152,7 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
     }
 
     //查询容量，剩余不够添加文件，不填加
-    LOG_DEBUG<<"file size"<<fileSize;
+    LOG_DEBUG<<"file size:"<<fileSize;
     try{
         std::string sql = "SELECT * FROM user where id=?;";
         auto result = dbClient->execSqlSync(sql, userId);
