@@ -50,3 +50,10 @@ void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
+void FolderController:: test(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
+
+  Json::Value json;
+  json["text"] = "hello";
+  auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+  callback(resp);
+}

@@ -23,6 +23,7 @@ void AdminFilter::doFilter(const HttpRequestPtr &req,
         std::string sql = "SELECT * FROM user WHERE id=?;";
         auto ret = dbclient->execSqlSync(sql, userId);
         isAdmin = (ret.at(0)["permissions"].as<int>() == 1);
+        LOG_DEBUG << "permissions is " <<  ret.at(0)["permissions"].as<int>();
     } catch (drogon::orm::DrogonDbException &e) {
         LOG_DEBUG<<e.base().what();
     }

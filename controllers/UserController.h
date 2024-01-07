@@ -13,20 +13,20 @@ class UserController : public drogon::HttpController<UserController>
     // METHOD_ADD(UserController::your_method_name, "/{1}/{2}/list", Get); // path is /UserController/{arg1}/{arg2}/list
     // ADD_METHOD_TO(UserController::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list
     //增
-    ADD_METHOD_TO(UserController::addUser, "/drogon/user/add", Post);
+    ADD_METHOD_TO(UserController::addUser, "/drogon/user/add", Post, "TimeFilter" );
     //删
-    ADD_METHOD_TO(UserController::removeUser, "/drogon/user/remove", Post, "AdminFilter");
+    ADD_METHOD_TO(UserController::removeUser, "/drogon/user/remove", Post, "LoginFilter", "AdminFilter");
     //改
-    ADD_METHOD_TO(UserController::modifyUser, "/drogon/user/modify", Post);
-    ADD_METHOD_TO(UserController::modifyUserName, "/drogon/user/modify/name", Post);
-    ADD_METHOD_TO(UserController::modifyUserPassword, "/drogon/user/modify/password", Post);
-    ADD_METHOD_TO(UserController::modifyUserPermissions, "/drogon/user/modify/permissions", Post, "AdminFilter");
+    ADD_METHOD_TO(UserController::modifyUser, "/drogon/user/modify", Post, "LoginFilter");
+    ADD_METHOD_TO(UserController::modifyUserName, "/drogon/user/modify/name", Post, "LoginFilter");
+    ADD_METHOD_TO(UserController::modifyUserPassword, "/drogon/user/modify/password", Post, "LoginFilter");
+    ADD_METHOD_TO(UserController::modifyUserPermissions, "/drogon/user/modify/permissions", Post, "LoginFilter","AdminFilter");
     //查
-    ADD_METHOD_TO(UserController::selectUser, "/drogon/user/select", Post);
+    ADD_METHOD_TO(UserController::selectUser, "/drogon/user/select", Post, "LoginFilter");
     //登录
     ADD_METHOD_TO(UserController::loginUser, "/drogon/user/login", Post);
     //管理员列出全部用户
-    ADD_METHOD_TO(UserController::listAllUser, "/drogon/user/listall", Post, "AdminFilter");
+    ADD_METHOD_TO(UserController::listAllUser, "/drogon/user/listall", Post, "LoginFilter","AdminFilter");
 
 
     METHOD_LIST_END

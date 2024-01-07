@@ -12,8 +12,8 @@ void LoginFilter::doFilter(const HttpRequestPtr &req,
                          FilterCallback &&fcb,
                          FilterChainCallback &&fccb)
 {
-    auto json = req->getJsonObject();
-    if(json->isMember("userId"))
+    auto session = req->session();
+    if(session->find("login"))
     {
         fccb();
         return ;
@@ -23,3 +23,4 @@ void LoginFilter::doFilter(const HttpRequestPtr &req,
     fcb(res);
     return;
 }
+

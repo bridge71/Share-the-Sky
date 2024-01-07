@@ -275,6 +275,7 @@ void FileController::listAllFile(const HttpRequestPtr& req,
         json["status"] = 2;
         json["error"] = "get file list failed";
     }
+    LOG_DEBUG << "have gained";
     auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     callback(resp);
 }
@@ -321,6 +322,7 @@ void FileController::downLoadFile(const HttpRequestPtr& req,
     std::function<void (const HttpResponsePtr &)> &&callback, 
     Json::Value json
 ) const {
+    LOG_DEBUG << "there is downLoadFile";
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     try{
@@ -353,6 +355,7 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
     std::string userId,
     std::string fileId
 ) const{
+    LOG_DEBUG << "there is downLoadFileGet";
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     std::string MD5, suffix;
@@ -397,6 +400,7 @@ void FileController::downLoadFileAdmin(const HttpRequestPtr& req,
     std::function<void (const HttpResponsePtr &)> &&callback,
     std::string fileId
 ) const{
+    LOG_DEBUG << "there is downLoadFileAdmin";
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
     std::string MD5, suffix;

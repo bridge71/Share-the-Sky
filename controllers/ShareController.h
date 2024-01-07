@@ -11,9 +11,9 @@ class ShareController : public drogon::HttpController<ShareController>
     // use METHOD_ADD to add your custom processing function here;
     // METHOD_ADD(ShareController::get, "/{2}/{1}", Get); // path is /ShareController/{arg2}/{arg1}
     // METHOD_ADD(ShareController::your_method_name, "/{1}/{2}/list", Get); // path is /ShareController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(ShareController::shareFile, "/share", Post); // path is /absolute/path/{arg1}/{arg2}/list
-    ADD_METHOD_TO(ShareController::getShareFile, "/share/acquire", Post); // path is /absolute/path/{arg1}/{arg2}/list
-    ADD_METHOD_TO(ShareController::saveFile, "/share/save", Post); // path is /absolute/path/{arg1}/{arg2}/list
+    ADD_METHOD_TO(ShareController::shareFile, "/share", Post, "LoginFilter"); // path is /absolute/path/{arg1}/{arg2}/list
+    ADD_METHOD_TO(ShareController::getShareFile, "/share/acquire", Post, "LoginFilter"); // path is /absolute/path/{arg1}/{arg2}/list
+    ADD_METHOD_TO(ShareController::saveFile, "/share/save", Post, "LoginFilter"); // path is /absolute/path/{arg1}/{arg2}/list
 
 
 

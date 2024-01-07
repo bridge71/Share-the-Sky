@@ -15,14 +15,14 @@ class FileController : public drogon::HttpController<FileController>
     METHOD_LIST_BEGIN
     // use METHOD_ADD to add your custom processing function here;
     // METHOD_ADD(FileController::get, "/{2}/{1}", Get); // path is /FileController/{arg2}/{arg1}
-    ADD_METHOD_TO(FileController::addFile, "/file/add", Post); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::deleteFile, "/file/delete", Post); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::listFile, "/file/list", Post); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::addFile, "/file/add", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::deleteFile, "/file/delete", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::listFile, "/file/list", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::listAllFile, "/file/alllist", Post, "AdminFilter"); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::findFileName, "/file/findName", Post); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::findFileMD5, "/file/findMD5", Post); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::downLoadFile, "/file/download", Post); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::downLoadFileGet, "/file/download?userid={1}&fileid={2}", Get); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::findFileName, "/file/findName", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::findFileMD5, "/file/findMD5", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::downLoadFile, "/file/download", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::downLoadFileGet, "/file/download?userid={1}&fileid={2}", Get, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::downLoadFileAdmin, "/file/download/admin?fileid={1}", Get, "AdminFilter"); // path is /FileController/{arg1}/{arg2}/list
 
     // ADD_METHOD_TO(FileController::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list

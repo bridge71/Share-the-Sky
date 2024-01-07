@@ -1,5 +1,5 @@
 #include "UserController.h"
-
+#include <regex>
 // Add definition of your processing function here
 
 #define KB (1024)
@@ -11,16 +11,41 @@ void UserController::addUser(const HttpRequestPtr& req,
 ) const {
     auto dbClient = drogon::app().getDbClient();
     auto transaction = dbClient->newTransaction();
-    std::string sql = "INSERT INTO user(userName, passWord, permissions, capacity, remaining) VALUE(?, ?, ?, ?, ?)";
-    std::string userName, passWord;
+    std::string sql = "INSERT INTO user(userName, passWord, permissions, capacity, remaining, email) VALUE(?, ?, ?, ?, ?, ?)";
+    std::string userName, passWord, email;
     auto resJson = req->getJsonObject();
     userName = (*resJson)["userName"].asString();
     passWord = (*resJson)["passWord"].asString();
+    email = (*resJson)["email"].asString(); 
+    LOG_DEBUG << "email is " << email;
+    std::regex email_regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,}$");  
+    
+    Json::Value json;
+    if (std::regex_match(email, email_regex)) {  
+        LOG_DEBUG << "Valid email address";  
+    } else {  
+        LOG_ERROR << "Invalid email address";  
+        json["status"] = 1;
+        json["warning"] = "Invalid email address";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+        callback(resp);
+        return;
+
+    }  
     LOG_DEBUG<<userName;
     LOG_DEBUG<<passWord;
-    Json::Value json;
     try {
-        transaction->execSqlSync(sql, userName, passWord, 2, 1*GB, 1*GB);
+        std::string query = "select * from user where userName = ? or email = ?";
+        auto result6 = transaction->execSqlSync(query, userName, email);
+        if(result6.size() != 0){
+            json["status"] = 1;
+            json["warning"] = "the userName is occupied or the email is occupied";
+            LOG_ERROR << " the userName is occupied or the email is occupied";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+            callback(resp);
+            return;
+        }
+        transaction->execSqlSync(sql, userName, passWord, 2, 1*GB, 1*GB, email);
         auto result = transaction->execSqlSync("select max(id) from user");
         std::string  id;
         for(auto row : result){
@@ -216,6 +241,8 @@ void UserController::loginUser(const HttpRequestPtr& req,
             json["status"] = 1;
             json["warning"] = "there is no such user or password is wrong"; 
         }else{
+            auto session = req->session();
+            session->insert("login", "ok");
             json["data"]["userId"] = ret.at(0)["id"].as<int>();
             LOG_DEBUG<<"userId:"<<ret.at(0)["id"].as<int>();
             json["data"]["userName"] = ret.at(0)["userName"].as<std::string>();
@@ -253,7 +280,7 @@ void UserController::listAllUser(const HttpRequestPtr& req,
             item["userType"] = row["permissions"].as<int>();
             json.append(item);
         }
-        json["status"] = 0;
+ //       json["status"] = 0;
     } catch (drogon::orm::DrogonDbException &e) {
         LOG_ERROR<<e.base().what();
         json["status"] = 2;
