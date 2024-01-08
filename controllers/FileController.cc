@@ -47,19 +47,31 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     LOG_DEBUG << "rootFolderId is "<< fatherFolderId;
      
     std::string key = "path";
-    std::string path = para[key];
-    LOG_DEBUG<<"path:"<<path;
+    std::string prePath = para[key];
+    LOG_DEBUG<<"prepath:"<<prePath;
     std::string folderName = "";
-    int pathLength = path.size();
-    if(path[pathLength - 1] != '/'){
-        LOG_ERROR<<"path error"<<"  path: "<<path;
-        message["status"] = 2;
-        message["error"] = "path error, upload failed";
-        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
-        callback(resp);
-        return;
+    int prePathLength = prePath.size();
+   // if(prepath[pathLength - 1] != '/'){
+   //     LOG_ERROR<<"path error"<<"  path: "<<path;
+   //     message["status"] = 2;
+   //     message["error"] = "path error, upload failed";
+   //     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+   //     callback(resp);
+   //     return;
+   // }
+    if(prePath[prePathLength - 1] != '/')
+         prePath += "/";
+    if(prePath[0] != '/')
+         prePath = "/" + prePath;
+    std::string path = "/";
+    prePathLength = prePath.size();
+    for(int i = 1; i < prePathLength - 1; i++){
+        if(prePath[i] == '/' && prePath[i - 1] == '/')
+            continue;
+        path += prePath[i];
     }
-
+    LOG_DEBUG << "path " << path;
+    int pathLength = path.size(); 
     for(int i = 0; i < pathLength; i++){
         if(path[i] == '/'){
             if(folderName.size() != 0){
@@ -97,14 +109,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
     std::reverse(suffix.begin(), suffix.end());
     std::string rename = MD5 + suffix;
 
-        //用户是否存在
-    try{
-        
-    } catch (drogon::orm::DrogonDbException &e) {
-        LOG_ERROR<<e.base().what();
-    }
-
-    //查询容量，剩余不够添加文件，不填加
+     //查询容量，剩余不够添加文件，不填加
     LOG_DEBUG<<"file size"<<file.fileLength();
     try{
         std::string sql = "SELECT * FROM user where id=?;";
