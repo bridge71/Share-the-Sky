@@ -171,7 +171,9 @@ void UserController::modifyUserPermissions(const HttpRequestPtr& req,
     Json::Value message;
     auto json = req->getJsonObject();
     std::string userId = (*json)["userIdM"].as<std::string>();
-    std::string permission = (*json)["permissions"].as<std::string>();
+    std::string permission = (*json)["permission"].as<std::string>();
+    LOG_DEBUG<<"userId:"<<userId;
+    LOG_DEBUG<<"permission:"<<permission;
     auto dbClient = drogon::app().getDbClient();
     LOG_DEBUG << "userId " << userId;
     LOG_DEBUG << "permissions " << permission;

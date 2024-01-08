@@ -205,6 +205,33 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
+
+void FileController::deleteFileAdmin(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
+    auto dbclient = drogon::app().getDbClient();
+    Json::Value message;
+    std::string fileId = json["fileId"].as<std::string>();
+    LOG_DEBUG<<"文件ID:"<<fileId;
+    try{
+        auto ret = dbclient->execSqlSync("select * from fileOfUser where fileId = ?", fileId);
+        int fileSize = ret.at(0)["fileSize"].as<int>();
+        LOG_DEBUG<<"delete file size:"<<fileSize;
+        for (const auto &row : ret) {
+            auto userId = row["userId"].as<std::string>();
+            std::string sql = "UPDATE user SET remaining=remaining+? WHERE id=?";
+            dbclient->execSqlSync(sql, fileSize, userId);
+            dbclient->execSqlSync("delete from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
+        }
+        dbclient->execSqlSync("DELETE FROM file WHERE id=?", fileId);
+        message["code"] = 0;
+    }catch (drogon::orm::DrogonDbException &e){
+        message["status"] = 2;
+        message["error"] = "Delete failed";
+        LOG_DEBUG<<e.base().what();
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+    callback(resp);
+}
+
 void FileController::findFileName(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback, Json::Value json)const{
     auto dbclient = drogon::app().getDbClient();
     Json::Value message;
