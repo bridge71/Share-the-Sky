@@ -434,3 +434,46 @@ void FileController::downLoadFileAdmin(const HttpRequestPtr& req,
     auto resp = drogon::HttpResponse::newFileResponse("./uploads/"+MD5+suffix);
     callback(resp);
 }
+void FileController::listOwners(const HttpRequestPtr& req, 
+    std::function<void (const HttpResponsePtr &)> &&callback
+    ) const{
+    
+    auto resJson = req->getJsonObject();
+    int fileId = (*resJson)["fileId"].as<int>();
+    auto dbclient = drogon::app().getDbClient();
+    Json::Value message;
+    try{
+        std::string sql = 
+        " \
+            SELECT * from fileOfUser \
+            WHERE fileId = ?; \
+        ";
+        auto future = dbclient->execSqlAsyncFuture(sql, fileId);
+        auto result = future.get();
+        if(result.empty()) {
+            LOG_ERROR<<"没有查询到用户";
+            message["status"] = 1;
+            message["warning"] = "there is no such owner";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+        for(auto row : result){
+            Json::Value item;
+            int userId = row["userId"].as<int>();
+            auto future2 = dbclient->execSqlAsyncFuture("select userName from user where id = ?", userId); 
+            auto result2 = future2.get();
+            item["userName"] = result2.at(0)["userName"].as<std::string>();
+            message.append(item);
+        }
+    }catch (drogon::orm::DrogonDbException &e){
+        LOG_DEBUG<<e.base().what();
+        message["status"] = 2;
+        message["error"] = "check owners failed";
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+        callback(resp);
+        return ;
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+    callback(resp);
+}
