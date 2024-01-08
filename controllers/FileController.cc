@@ -196,7 +196,7 @@ void FileController::deleteFile(const HttpRequestPtr &req, std::function<void (c
         std::string sql = "UPDATE user SET remaining=remaining+? WHERE id=?";
         dbclient->execSqlSync(sql, fileSize, userId);
         dbclient->execSqlSync("delete from fileOfUser where userId = ? AND fileId = ?", userId, fileId);
-        message["code"] = 0;
+        message["status"] = 0;
     }catch (drogon::orm::DrogonDbException &e){
         message["status"] = 2;
         message["error"] = "Delete failed";
@@ -309,6 +309,10 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
             //item["path"] = row["path"].as<std::string>();
             message.append(item);
         }
+        if(message.size() == 0){
+            message["status"] = 1;
+            message["warning"] = "there is no file in this folder";
+        } 
     }catch (drogon::orm::DrogonDbException &e){
         LOG_ERROR<<e.base().what();
         message["status"] = 2;
@@ -470,10 +474,52 @@ void FileController::listOwners(const HttpRequestPtr& req,
         LOG_DEBUG<<e.base().what();
         message["status"] = 2;
         message["error"] = "check owners failed";
-        auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
-        callback(resp);
-        return ;
+        
     }
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
+}
+
+void FileController::fileDeleteAdmin(const HttpRequestPtr& req, 
+    std::function<void (const HttpResponsePtr &)> &&callback
+    ) const{
+    auto resJson = req->getJsonObject();
+    std::string fileId = (*resJson)["fileId"].asString();
+    auto dbclient = drogon::app().getDbClient();
+    auto transaction = dbclient->newTransaction(); 
+    Json::Value message;
+    try{
+        std::string sql1 = 
+        " \
+            SELECT * from fileOfUser \
+            WHERE fileId = ?; \
+        ";
+        
+        std::string sql2 = "delete from fileOfUser where fileId = ?";
+        std::string sql3 = "UPDATE user set remaining = remaining + ? WHERE id=?;";
+        auto result = transaction->execSqlSync(sql1, fileId);
+        if(result.empty()) {
+            LOG_ERROR<<"无此文件";
+            message["status"] = 1;
+            message["warning"] = "there is no such file";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return ;
+        }
+        int sizeOfFile = result.at(0)["fileSize"].as<int>();
+        for(auto row : result){
+           int userId = row["userId"].as<int>();
+           transaction->execSqlSync(sql3, sizeOfFile, userId); 
+        }
+        transaction->execSqlSync(sql2, fileId);
+        message["status"] = 0;
+    }catch (drogon::orm::DrogonDbException &e){
+        LOG_DEBUG<<e.base().what();
+        message["status"] = 2;
+        message["error"] = "delete file failed";
+        transaction->rollback();
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+    callback(resp);
+
 }

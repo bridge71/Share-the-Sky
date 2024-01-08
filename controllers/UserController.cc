@@ -173,6 +173,8 @@ void UserController::modifyUserPermissions(const HttpRequestPtr& req,
     std::string userId = (*json)["userIdM"].as<std::string>();
     std::string permission = (*json)["permissions"].as<std::string>();
     auto dbClient = drogon::app().getDbClient();
+    LOG_DEBUG << "userId " << userId;
+    LOG_DEBUG << "permissions " << permission;
     try {
         std::string sql = "UPDATE user set permissions = ? WHERE id=?;";
         dbClient->execSqlSync(sql, permission, userId);
