@@ -86,40 +86,48 @@ void ShareController::getShareFile(const HttpRequestPtr &req, std::function<void
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
             return ;
-         }
-      // gain information from table share
-         std::string timeLimit, fileName;
-         int userId, fileId;
-         for(auto row : result){
-             timeLimit = row["time"].as<std::string>();
-             userId = row["userId"].as<int>();
-             fileId = row["fileId"].as<int>();
-             fileName = row["fileName"].as<std::string>();
-         }
+        }
+     // gain information from table share
+        std::string timeLimit, fileName;
+        int userId, fileId;
+        for(auto row : result){
+            timeLimit = row["time"].as<std::string>();
+            userId = row["userId"].as<int>();
+            fileId = row["fileId"].as<int>();
+            fileName = row["fileName"].as<std::string>();
+        }
 
-         auto nowTime = dbClient->execSqlSync("select now() + interval 8 hour");
-         std::string timeNow;
-         for(auto row : nowTime){
-             timeNow = row["now() + interval 8 hour"].as<std::string>();
-         }
-         LOG_DEBUG << "now is " << timeNow;
-         // check timeLimit
-         if(timeLimit >= timeNow){
-             auto result = dbClient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?",
-                 userId, fileId); 
-             int fileSize = result.at(0)["fileSize"].as<int>(); 
-             message["fileSize"] = fileSize;
-             auto result2 = dbClient->execSqlSync("select * from file where id = ?", fileId);
-             std::string fileExtension = result2.at(0)["fileExtension"].as<std::string>();
-             message["fileExtension"] = fileExtension;
-             message["fileId"] = fileId;
-             message["fileName"] = fileName;
-             message["status"] = 0;
-         }else{
-            message["status"] = 1;
-            message["warning"] = "the share beyonds time limit";
-            
-         }
+        auto nowTime = dbClient->execSqlSync("select now() + interval 8 hour");
+        std::string timeNow;
+        for(auto row : nowTime){
+            timeNow = row["now() + interval 8 hour"].as<std::string>();
+        }
+        LOG_DEBUG << "now is " << timeNow;
+        // check timeLimit
+        if(timeLimit >= timeNow){
+            auto result = dbClient->execSqlSync("select * from fileOfUser where userId = ? and fileId = ?",
+                userId, fileId); 
+            int fileSize = result.at(0)["fileSize"].as<int>(); 
+            message["fileSize"] = fileSize;
+            auto result2 = dbClient->execSqlSync("select * from file where id = ?", fileId);
+            if(result2.size() == 0){
+                message["status"] = 1;
+                message["warning"] = "the file has been deleted";
+                auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+                callback(resp);
+                return ;
+            }
+ 
+            std::string fileExtension = result2.at(0)["fileExtension"].as<std::string>();
+            message["fileExtension"] = fileExtension;
+            message["fileId"] = fileId;
+            message["fileName"] = fileName;
+            message["status"] = 0;
+        }else{
+           message["status"] = 1;
+           message["warning"] = "the share beyonds time limit";
+           
+        }
     }catch(drogon::orm::DrogonDbException &e){
         message["status"] = 1;
         message["error"] = "get share failed";

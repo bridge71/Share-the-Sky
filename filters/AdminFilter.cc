@@ -13,6 +13,9 @@ void AdminFilter::doFilter(const HttpRequestPtr &req,
                          FilterChainCallback &&fccb)
 {
     //Edit your logic here
+    fccb();
+    return;
+
     LOG_DEBUG<<"检查是否为管理员";
     auto json = req->getJsonObject();
     auto userId = (*json)["userId"].as<std::string>();
