@@ -1,6 +1,5 @@
 #include "FolderController.h"
 #include <queue>
-std::queue<int>q;
 void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
 
 
@@ -52,7 +51,7 @@ void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void
     callback(resp);
 }
 void FolderController:: deleteFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
-
+  std::queue<int>q;
   auto dbClient = drogon::app().getDbClient();
   auto transaction = dbClient->newTransaction();
   auto resJson = req->getJsonObject();
@@ -91,6 +90,29 @@ void FolderController:: deleteFolder(const HttpRequestPtr& req, std::function<vo
       transaction->rollback();
       message["status"] = 2;
       message["error"] = "delete failed";
+  }
+  auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+  callback(resp);
+}
+void FolderController:: renameFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
+
+  auto dbClient = drogon::app().getDbClient();
+  auto transaction = dbClient->newTransaction();
+  auto resJson = req->getJsonObject();
+  int folderId;
+  folderId = (*resJson)["folderId"].as<int>();
+  LOG_DEBUG<<"folderId:"<<folderId;
+  std::string folderName = (*resJson)["folderName"].asString();
+  LOG_DEBUG << "folderName:" << folderName;
+  Json::Value message;
+  try{
+      transaction->execSqlSync("update folder set folderName = ? where folderId = ?", folderName, folderId); 
+      message["status"] = 0;
+  }catch (drogon::orm::DrogonDbException &e){
+      LOG_ERROR<<e.base().what();
+      transaction->rollback();
+      message["status"] = 2;
+      message["error"] = "rename folder failed";
   }
   auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
   callback(resp);

@@ -13,6 +13,8 @@ class FolderController : public drogon::HttpController<FolderController>
     // METHOD_ADD(FolderController::your_method_name, "/{1}/{2}/list", Get); // path is /FolderController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FolderController::makeFolder, "/folder/make", Post); // path is /absolute/path/{arg1}/{arg2}/list
     ADD_METHOD_TO(FolderController::deleteFolder, "/folder/delete", Post); // path is /absolute/path/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FolderController::renameFolder, "/folder/rename", Post); // path is /absolute/path/{arg1}/{arg2}/list
+
 
 
 
@@ -21,5 +23,7 @@ class FolderController : public drogon::HttpController<FolderController>
     // void get(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, int p1, std::string p2);
     void makeFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
     void deleteFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
+    void renameFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
+
 
 };

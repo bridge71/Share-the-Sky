@@ -555,3 +555,29 @@ void FileController::fileDeleteAdmin(const HttpRequestPtr& req,
     callback(resp);
 
 }
+void FileController:: renameFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
+
+  auto dbClient = drogon::app().getDbClient();
+  auto transaction = dbClient->newTransaction();
+  auto resJson = req->getJsonObject();
+  int folderId, fileId;
+  folderId = (*resJson)["folderId"].as<int>();
+  LOG_DEBUG<<"folderId:"<<folderId;
+  std::string fileName = (*resJson)["fileName"].asString();
+  LOG_DEBUG << "fileName:" << fileName;
+  fileId = (*resJson)["fileId"].as<int>();
+  LOG_DEBUG << "fileId:" << fileId;
+  Json::Value message;
+  try{
+      transaction->execSqlSync("update fileOfUser set fileName = ? where folderId = ? and fileId = ?",
+        fileName, folderId, fileId); 
+      message["status"] = 0;
+  }catch (drogon::orm::DrogonDbException &e){
+      LOG_ERROR<<e.base().what();
+      transaction->rollback();
+      message["status"] = 2;
+      message["error"] = "rename file failed";
+  }
+  auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+  callback(resp);
+}
