@@ -477,6 +477,7 @@ void FileController::listOwners(const HttpRequestPtr& req,
     auto resJson = req->getJsonObject();
     int fileId = (*resJson)["fileId"].as<int>();
     auto dbclient = drogon::app().getDbClient();
+    LOG_DEBUG << "fileId " << fileId;
     Json::Value message;
     try{
         std::string sql = 
@@ -494,13 +495,27 @@ void FileController::listOwners(const HttpRequestPtr& req,
             callback(resp);
             return ;
         }
+        int count = 0;
         for(auto row : result){
             Json::Value item;
             int userId = row["userId"].as<int>();
-            auto future2 = dbclient->execSqlAsyncFuture("select userName from user where id = ?", userId); 
-            auto result2 = future2.get();
-            item["userName"] = result2.at(0)["userName"].as<std::string>();
+            auto result2 = dbclient->execSqlSync("select userName from user where id = ?", userId); 
+            LOG_DEBUG << "userId " << userId;
+            if(result2.size() == 0){
+               continue;
+            }
+            count++;
+            std::string userName = result2.at(0)["userName"].as<std::string>() ;
+            LOG_DEBUG << "userName " << userName;
+            item["userName"] = userName;
             message.append(item);
+            
+        }
+        LOG_DEBUG << "count " << count;
+        if(count == 0){ 
+           LOG_DEBUG << "there is no owner";
+           message["status"] = 1;
+           message["warning"] = "no user owns it";
         }
     }catch (drogon::orm::DrogonDbException &e){
         LOG_DEBUG<<e.base().what();
