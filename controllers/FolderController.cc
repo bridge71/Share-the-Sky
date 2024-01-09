@@ -1,5 +1,6 @@
 #include "FolderController.h"
-
+#include <queue>
+std::queue<int>q;
 void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
 
 
@@ -50,10 +51,47 @@ void FolderController:: makeFolder(const HttpRequestPtr& req, std::function<void
     auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
     callback(resp);
 }
-void FolderController:: test(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
+void FolderController:: deleteFolder(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const{
 
-  Json::Value json;
-  json["text"] = "hello";
-  auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+  auto dbClient = drogon::app().getDbClient();
+  auto transaction = dbClient->newTransaction();
+  auto resJson = req->getJsonObject();
+  int folderId;
+  folderId = (*resJson)["folderId"].as<int>();
+  LOG_DEBUG<<"folderId:"<<folderId;
+  Json::Value message;
+  q.push(folderId); 
+  try{
+      while(q.size()){
+          int folderId = q.front();
+          q.pop();
+          LOG_DEBUG << "folderId " << folderId; 
+          std::string sql = "select * from folder where fatherFolderId = ?;";
+          auto result1 = transaction->execSqlSync(sql, folderId);
+          for (const auto &row : result1){
+              int id = row["folderId"].as<int>();
+              q.push(id);
+          }
+          std::string sql2 = "select * from fileOfUser where folderId = ?;";
+          auto result2 = transaction->execSqlSync(sql2, folderId);
+          for (const auto &row : result2){
+              int fileId = row["fileId"].as<int>();
+              LOG_DEBUG << "fileId " << fileId;
+              int userId = row["userId"].as<int>();
+              LOG_DEBUG << "userId " << userId;
+              int fileSize = row["fileSize"].as<int>();
+              transaction->execSqlSync("update user set capacity = capacity + ? where id = ?", fileSize, userId); 
+              transaction->execSqlSync("delete from fileOfUser where fileId = ? and userId = ?", fileId, userId);
+          }
+          transaction->execSqlSync("delete from folder where folderId = ?", folderId);
+       }
+       message["status"] = 0;
+  }catch (drogon::orm::DrogonDbException &e){
+      LOG_ERROR<<e.base().what();
+      transaction->rollback();
+      message["status"] = 2;
+      message["error"] = "delete failed";
+  }
+  auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
   callback(resp);
 }

@@ -65,7 +65,7 @@ void FileController::addFile(const HttpRequestPtr &req, std::function<void (cons
          prePath = "/" + prePath;
     std::string path = "/";
     prePathLength = prePath.size();
-    for(int i = 1; i < prePathLength - 1; i++){
+    for(int i = 1; i < prePathLength; i++){
         if(prePath[i] == '/' && prePath[i - 1] == '/')
             continue;
         path += prePath[i];
