@@ -367,6 +367,7 @@ void FileController::downLoadFile(const HttpRequestPtr& req,
         auto future = dbclient->execSqlAsyncFuture(sql, MD5);
         auto result = future.get();
         if(result.empty()) {
+	    message["status"] = 2;
             message["error"] = "download failed";
             auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
             callback(resp);
