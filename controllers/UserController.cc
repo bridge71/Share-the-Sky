@@ -107,12 +107,18 @@ void UserController::modifyUser(const HttpRequestPtr& req,
 ) const {
     Json::Value message;
     auto json = req->getJsonObject();
-    std::string userId = (*json)["userId"].as<std::string>();
+    std::string userIdM = (*json)["userIdM"].as<std::string>();
     std::string userName = (*json)["userName"].as<std::string>();
+    std::string passWord = (*json)["passWord"].as<std::string>();
+    std::string email = (*json)["email"].as<std::string>();
+    LOG_DEBUG<<"userIdM"<<userIdM;
+    LOG_DEBUG<<"userName"<<userName;
+    LOG_DEBUG<<"passWord"<<passWord;
+    LOG_DEBUG<<"email"<<email;
     auto dbClient = drogon::app().getDbClient();
     try {
-        std::string sql = "UPDATE user set userName = ? WHERE id=?;";
-        dbClient->execSqlSync(sql, userName, userId);
+        std::string sql = "UPDATE user set userName = ?, passWord = ?, email =?  WHERE id=?;";
+        dbClient->execSqlSync(sql, userName, passWord, email, userIdM);
         message["status"] = 0;
     } catch (drogon::orm::DrogonDbException &e) {
         LOG_ERROR<<e.base().what();
@@ -211,6 +217,10 @@ void UserController::selectUser(const HttpRequestPtr& req,
                 LOG_DEBUG<<user["id"].as<int>();
                 json["data"]["userName"] = user["userName"].as<std::string>();
                 LOG_DEBUG<<user["userName"].as<std::string>();
+                json["data"]["passWord"] = user["passWord"].as<std::string>();
+                LOG_DEBUG<<user["passWord"].as<std::string>();
+                json["data"]["email"] = user["email"].as<std::string>();
+                LOG_DEBUG<<user["email"].as<std::string>();
                 json["data"]["permissions"] = user["permissions"].as<int>();
                 LOG_DEBUG<<user["permissions"].as<int>();
                 json["data"]["capacity"] = user["capacity"].as<double>();
@@ -281,6 +291,8 @@ void UserController::listAllUser(const HttpRequestPtr& req,
             Json::Value item;
             item["userId"] = row["id"].as<std::string>();
             item["userName"] = row["userName"].as<std::string>();
+            item["passWord"] = row["passWord"].as<std::string>();
+            item["email"] = row["email"].as<std::string>();
             item["userType"] = row["permissions"].as<int>();
             json.append(item);
         }
