@@ -12,8 +12,6 @@ void LoginFilter::doFilter(const HttpRequestPtr &req,
                          FilterCallback &&fcb,
                          FilterChainCallback &&fccb)
 {
-    fccb();
-    return ;
 
     auto session = req->session();
     if(session->find("login"))

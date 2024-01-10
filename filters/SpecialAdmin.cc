@@ -1,21 +1,19 @@
 /**
  *
- *  AdminFilter.cc
+ *  SpecialAdmin.cc
  *
  */
 
-#include "AdminFilter.h"
+#include "SpecialAdmin.h"
 
 using namespace drogon;
 
-void AdminFilter::doFilter(const HttpRequestPtr &req,
+void SpecialAdmin::doFilter(const HttpRequestPtr &req,
                          FilterCallback &&fcb,
-                         FilterChainCallback &&fccb)
+                         FilterChainCallback &&fccb, std::string userId)
 {
-    
+    //Edit your logic here
     LOG_DEBUG<<"检查是否为管理员";
-    auto json = req->getJsonObject();
-    auto userId = (*json)["userId"].as<std::string>();
     LOG_DEBUG << "userId " << userId;
     auto dbclient = drogon::app().getDbClient();
     bool isAdmin=false;
@@ -47,4 +45,5 @@ void AdminFilter::doFilter(const HttpRequestPtr &req,
     LOG_DEBUG<<"the user is not admin, userId:"<<userId;
     auto res = drogon::HttpResponse::newHttpJsonResponse(message);
     fcb(res);
-}
+
+ }
