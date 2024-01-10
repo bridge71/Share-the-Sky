@@ -10,9 +10,15 @@ using namespace drogon;
 
 void SpecialAdmin::doFilter(const HttpRequestPtr &req,
                          FilterCallback &&fcb,
-                         FilterChainCallback &&fccb, std::string userId)
+                         FilterChainCallback &&fccb)
 {
     //Edit your logic here
+    
+    MultiPartParser fileUpload;
+
+    fileUpload.parse(req);
+    auto para = fileUpload.getParameters();
+    std::string userId = para["userId"];
     LOG_DEBUG<<"检查是否为管理员";
     LOG_DEBUG << "userId " << userId;
     auto dbclient = drogon::app().getDbClient();

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <drogon/drogon.h>
 #include <drogon/HttpFilter.h>
 using namespace drogon;
 

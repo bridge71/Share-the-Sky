@@ -337,6 +337,7 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
             item["type"] = "1";
             item["fileId"] = row["fileId"].as<std::string>();
             item["fileName"] = row["fileName"].as<std::string>();
+            item["folderId"] = row["folderId"].as<std::string>();
             //item["time"] = row["time"].as<std::string>();
             //item["path"] = row["path"].as<std::string>();
             message.append(item);
@@ -508,10 +509,13 @@ void FileController::listOwners(const HttpRequestPtr& req,
             count++;
             std::string userName = result2.at(0)["userName"].as<std::string>() ;
             std::string fileName = row["fileName"].as<std::string>();
+            std::string path = row["path"].as<std::string>();
             LOG_DEBUG << "userName " << userName;
             LOG_DEBUG << "fileName " << fileName;
+            LOG_DEBUG << "path " << path;
             item["userName"] = userName;
             item["fileName"] = fileName;
+            item["path"] = path;
             message.append(item);
             
         }
