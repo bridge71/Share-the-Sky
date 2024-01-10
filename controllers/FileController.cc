@@ -506,8 +506,11 @@ void FileController::listOwners(const HttpRequestPtr& req,
             }
             count++;
             std::string userName = result2.at(0)["userName"].as<std::string>() ;
+            std::string fileName = row["fileName"].as<std::string>();
             LOG_DEBUG << "userName " << userName;
+            LOG_DEBUG << "fileName " << fileName;
             item["userName"] = userName;
+            item["fileName"] = fileName;
             message.append(item);
             
         }

@@ -117,6 +117,15 @@ void UserController::modifyUser(const HttpRequestPtr& req,
     LOG_DEBUG<<"email"<<email;
     auto dbClient = drogon::app().getDbClient();
     try {
+        std::string sql3 = "select * from user where userName = ? or email = ?";
+        auto result = dbClient->execSqlSync(sql3, userName, email);
+        if(result.size() != 0){
+            message["status"] = 1;
+            message["warning"] = "there is owner who own the name or the email";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+            callback(resp);
+            return;
+        }
         std::string sql = "UPDATE user set userName = ?, passWord = ?, email =?  WHERE id=?;";
         dbClient->execSqlSync(sql, userName, passWord, email, userIdM);
         message["status"] = 0;

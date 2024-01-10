@@ -156,13 +156,7 @@ void ShareController::saveFile(const HttpRequestPtr &req, std::function<void (co
 
     auto dbClient = drogon::app().getDbClient();
 
-        //用户是否存在
-    try{
-        
-    } catch (drogon::orm::DrogonDbException &e) {
-        LOG_ERROR<<e.base().what();
-    }
-
+  
     //查询容量，剩余不够添加文件，不填加
     LOG_DEBUG<<"file size:"<<fileSize;
     try{
