@@ -419,7 +419,7 @@ void FileController::downLoadFile(const HttpRequestPtr& req,
 
     // auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     // callback(resp);
-    auto resp = drogon::HttpResponse::newFileResponse("./uploads/Screenshot_2023-11-10_10-20-01.png");
+    auto resp = drogon::HttpResponse::newFileResponse("../../uploads/Screenshot_2023-11-10_10-20-01.png");
     callback(resp);
 }
 
@@ -464,7 +464,7 @@ void FileController::downLoadFileGet(const HttpRequestPtr& req,
 
     // auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
     // callback(resp);
-    auto resp = drogon::HttpResponse::newFileResponse("./uploads/"+MD5+suffix);
+    auto resp = drogon::HttpResponse::newFileResponse("../../uploads/"+MD5+suffix);
     callback(resp);
 
 }
@@ -504,7 +504,7 @@ void FileController::downLoadFileAdmin(const HttpRequestPtr& req,
         callback(resp);
         return ;
     }
-    auto resp = drogon::HttpResponse::newFileResponse("./uploads/"+MD5+suffix);
+    auto resp = drogon::HttpResponse::newFileResponse("../../uploads/"+MD5+suffix);
     callback(resp);
 }
 void FileController::listOwners(const HttpRequestPtr& req, 
