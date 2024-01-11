@@ -355,6 +355,41 @@ void FileController::listFile(const HttpRequestPtr &req, std::function<void (con
     callback(resp);
 }
 
+void FileController::listFileOfUser(const HttpRequestPtr &req, std::function<void (const HttpResponsePtr &)> && callback)const{
+    auto dbclient = drogon::app().getDbClient();
+    auto resJson = req->getJsonObject();
+    Json::Value message;
+    std::string key1 = "userId";
+    try{
+        std::string userId = (*resJson)["userId"].asString();
+        LOG_DEBUG<<"userId:"<<userId;
+        
+        std::string sql = "select * from fileOfUser where userId = ?;";
+        auto result1 = dbclient->execSqlSync(sql, userId);
+        std::string fileName;
+        for (const auto &row : result1){
+            Json::Value item;
+            fileName = row["fileName"].as<std::string>();
+            item["fileName"] = fileName;
+            LOG_DEBUG << "fileName " << fileName;
+            item["time"] = row["time"].as<std::string>();
+            item["fileSize"] = row["fileSize"].as<int>() / 1024;
+            item["path"] = row["path"].as<std::string>(); 
+            message.append(item);
+        }
+        
+        if(message.size() == 0){
+            message["status"] = 1;
+            message["warning"] = "there is no file in this folder";
+        } 
+    }catch (drogon::orm::DrogonDbException &e){
+        LOG_ERROR<<e.base().what();
+        message["status"] = 2;
+        message["error"] = "list failed";
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(message);
+    callback(resp);
+}
 void FileController::downLoadFile(const HttpRequestPtr& req, 
     std::function<void (const HttpResponsePtr &)> &&callback, 
     Json::Value json

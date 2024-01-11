@@ -24,10 +24,11 @@ class FileController : public drogon::HttpController<FileController>
     ADD_METHOD_TO(FileController::findFileMD5, "/file/findMD5", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::downLoadFile, "/file/download", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::downLoadFileGet, "/file/download?userid={1}&fileid={2}", Get, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
-    ADD_METHOD_TO(FileController::downLoadFileAdmin, "/file/download/admin?fileid={1}", Get, "SpecialAdmin"); // path is /FileController/{arg1}/{arg2}/list
+    ADD_METHOD_TO(FileController::downLoadFileAdmin, "/file/download/admin?fileid={1}", Get); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::listOwners, "/file/list/owners", Post, "LoginFilter", "AdminFilter"); // path is /FileController/{arg1}/{arg2}/list
     ADD_METHOD_TO(FileController::fileDeleteAdmin, "/file/deleteadmin", Post, "LoginFilter", "AdminFilter"); 
     ADD_METHOD_TO(FileController::renameFile, "/file/rename", Post, "LoginFilter"); 
+    ADD_METHOD_TO(FileController::listFileOfUser, "/file/list/user", Post, "LoginFilter"); // path is /FileController/{arg1}/{arg2}/list
 
     // ADD_METHOD_TO(FileController::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list
 
@@ -47,6 +48,8 @@ class FileController : public drogon::HttpController<FileController>
     void listOwners(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
     void fileDeleteAdmin(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
     void renameFile(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
+    void listFileOfUser(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback) const;
+
 
 
 };
