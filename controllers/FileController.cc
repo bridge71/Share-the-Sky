@@ -373,7 +373,7 @@ void FileController::listFileOfUser(const HttpRequestPtr &req, std::function<voi
             item["fileName"] = fileName;
             LOG_DEBUG << "fileName " << fileName;
             item["time"] = row["time"].as<std::string>();
-            item["fileSize"] = row["fileSize"].as<int>() / 1024;
+            item["fileSize(KB)"] = row["fileSize"].as<int>() / 1024;
             item["path"] = row["path"].as<std::string>(); 
             message.append(item);
         }
