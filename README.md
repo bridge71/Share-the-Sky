@@ -17,8 +17,9 @@ Using [drogon](https://github.com/drogonframework/drogon) that is a C++17/20 bas
 
 ## Project Setup
 ### Config
-You can config more detail on config.json, such as the maximun of file and the port of database.
-   You should move `./examples/config.json` to `./config.json` and modify your password of database.
+You should move `./examples/config.json` to `./config.json` and modify your password of database.
+And you can config more details on config.json, such as the maximun of file and the port of database.
+   
 ### install back end with docker
 ```sh
 docker pull drogonframework/drogon
