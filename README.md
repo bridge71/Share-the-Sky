@@ -27,6 +27,12 @@ docker network create cloud
 docker run -d --network cloud -v /real-path-of-mariadb:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=your-password -it -p 3306:3306 mariadb:latest
 docker exec -it the-id-of-mariadb mariadb -u root -p
 ```
+### confirm the ip of mariadb
+```sh
+docker ps
+docker inspect the-id-of-mariadb
+```
+Make sure that the IPAddress is equal to the host of db_clients in config.json.
 ### set up database
 ```sql
 CREATE TABLE drogon.fileOfUser (
