@@ -16,13 +16,15 @@ Using [drogon](https://github.com/drogonframework/drogon) that is a C++17/20 bas
 5. Modify user information and delete files. **(Admin)**
 
 ## Project Setup
+### Config
+You can config more detail on config.json, such as the maximun of file and the port of database.
+   You should move `./examples/config.json` to `./config.json` and modify your password of database.
 ### install back end with docker
 ```sh
 docker pull drogonframework/drogon
 docker pull mariadb
 docker network create cloud
-docker run -p 5555:5555 -v /home/bridge71/Public:/data/drogon --network cloud -it drogonframework/drogon
-docker run -d --network cloud -v /home/bridge71/Public/mariadb:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=your password -it -p 3306:3306 mariadb:latest
+docker run -d --network cloud -v /real-path-of-mariadb:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=your-password -it -p 3306:3306 mariadb:latest
 docker exec -it the-id-of-mariadb mariadb -u root -p
 ```
 ### set up database
@@ -94,4 +96,20 @@ ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_general_ci;
 ```
-### [install front end] 
+### [install front end](https://github.com/wang29a/Share-the-Sky-frontend)
+### build the project 
+```sh
+docker run -p 5555:5555 -v /real-path-of-share-the-sky:/data/drogon --network cloud -it drogonframework/drogon
+cd /data/drogon/your relative path of this project
+cmake ..
+./stk
+```
+### visit share-the-sky
+```js
+http:localhost:8080/login
+see more ip and port on front end
+```
+## Todo
+- [ ] breakpoint transmission
+   
+
