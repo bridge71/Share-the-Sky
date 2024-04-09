@@ -113,7 +113,7 @@ cmake ..
 ```
 ### visit share-the-sky
 ```js
-http:localhost:8080/login
+http://localhost:8080/login
 see more ip and port on front end
 ```
 ## Todo
