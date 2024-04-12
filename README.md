@@ -107,7 +107,7 @@ COLLATE=utf8mb4_general_ci;
 ### build the project 
 ```sh
 docker run -p 5555:5555 -v /real/path/to/share-the-sky:/data/drogon --network cloud -it drogonframework/drogon
-cd /data/drogon/relative/path/to/project
+cd /data/drogon/relative/path/to/project/build
 cmake ..
 ./stk
 ```
