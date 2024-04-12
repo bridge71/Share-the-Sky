@@ -25,7 +25,7 @@ And you can config more details on config.json, such as the maximun of file and 
 docker pull drogonframework/drogon
 docker pull mariadb
 docker network create cloud
-docker run -d --network cloud -v /real-path-of-mariadb:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=your-password -it -p 3306:3306 mariadb:latest
+docker run -d --network cloud -v /real/path/to/mariadb:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=your-password -it -p 3306:3306 mariadb:latest
 docker exec -it the-id-of-mariadb mariadb -u root -p
 ```
 ### confirm the ip of database
@@ -106,8 +106,8 @@ COLLATE=utf8mb4_general_ci;
 ### [install front end](https://github.com/wang29a/Share-the-Sky-frontend)
 ### build the project 
 ```sh
-docker run -p 5555:5555 -v /real-path-of-share-the-sky:/data/drogon --network cloud -it drogonframework/drogon
-cd /data/drogon/your relative path of this project
+docker run -p 5555:5555 -v /real/path/to/share-the-sky:/data/drogon --network cloud -it drogonframework/drogon
+cd /data/drogon/your relative/path/to/project
 cmake ..
 ./stk
 ```
